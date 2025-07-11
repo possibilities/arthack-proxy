@@ -1,12 +1,12 @@
 {
-  "name": "commanderjs-template",
+  "name": "arthack-proxy",
   "version": "0.1.0",
   "author": "Mike Bannister <notimpossiblemike@gmail.com>",
   "license": "MIT",
-  "description": "CommanderJS Template",
+  "description": "Arthack Proxy",
   "type": "module",
   "bin": {
-    "commanderjs-template": "./dist/cli.js"
+    "arthack-proxy": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsup",
