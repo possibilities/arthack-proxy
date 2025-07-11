@@ -1,12 +1,13 @@
 import fastify from 'fastify'
 import httpProxy from '@fastify/http-proxy'
 import { ProxyConfig, defaultConfig } from './config.js'
+import { DynamicConfigManager } from './dynamic-config.js'
 
 const INVALID_PORT = 9999999
 
 function extractSubdomainAndPort(
   hostname: string,
-  config: ProxyConfig,
+  configManager: DynamicConfigManager,
 ): { subdomain: string | null; port: number | null } {
   const subdomainMatch = hostname.match(/^([^.]+)\./)
   if (!subdomainMatch) {
@@ -14,11 +15,13 @@ function extractSubdomainAndPort(
   }
 
   const subdomain = subdomainMatch[1]
-  const port = config.subdomainToPortMapping[subdomain] || null
+  const port = configManager.subdomainToPortMapping[subdomain] || null
   return { subdomain, port }
 }
 
 export async function createProxyServer(config: ProxyConfig = defaultConfig) {
+  const configManager = new DynamicConfigManager(config.subdomainToPortMapping)
+
   const server = fastify({
     logger: {
       level: 'info',
@@ -31,12 +34,17 @@ export async function createProxyServer(config: ProxyConfig = defaultConfig) {
     },
   })
 
+  configManager.setLogger(server.log)
+
   await server.register(httpProxy, {
     upstream: 'http://localhost',
     prefix: '/',
     replyOptions: {
       rewriteRequestHeaders: (_request: any, headers: any) => {
-        const { port } = extractSubdomainAndPort(_request.hostname, config)
+        const { port } = extractSubdomainAndPort(
+          _request.hostname,
+          configManager,
+        )
 
         if (port) {
           return {
@@ -49,7 +57,10 @@ export async function createProxyServer(config: ProxyConfig = defaultConfig) {
       },
       getUpstream: (request: any) => {
         const hostname = request.hostname
-        const { subdomain, port } = extractSubdomainAndPort(hostname, config)
+        const { subdomain, port } = extractSubdomainAndPort(
+          hostname,
+          configManager,
+        )
 
         if (!subdomain) {
           server.log.warn(`No subdomain found in hostname: ${hostname}`)
@@ -67,6 +78,16 @@ export async function createProxyServer(config: ProxyConfig = defaultConfig) {
         return targetUrl
       },
     },
+  })
+
+  server.addHook('onReady', async () => {
+    configManager.startPolling(3000)
+    server.log.info('Started polling tmux sessions for mapping updates')
+  })
+
+  server.addHook('onClose', async () => {
+    configManager.stopPolling()
+    server.log.info('Stopped polling tmux sessions')
   })
 
   return server
