@@ -14,8 +14,8 @@ export class DynamicConfigManager {
   private pollInterval?: NodeJS.Timeout
   private logger?: FastifyInstance['log']
 
-  constructor(initialMappings: Record<string, number> = {}) {
-    this.currentMappings = { ...initialMappings }
+  constructor() {
+    this.currentMappings = {}
   }
 
   setLogger(logger: FastifyInstance['log']) {
@@ -49,13 +49,31 @@ export class DynamicConfigManager {
           if (portMatch) {
             const port = parseInt(portMatch[1], 10)
             newMappings[sessionName] = port
+            this.logger?.debug(
+              { session: sessionName, port },
+              'Found PORT mapping for tmux session',
+            )
+          } else {
+            this.logger?.debug(
+              { session: sessionName },
+              'No PORT environment variable found for tmux session',
+            )
           }
-        } catch {
-          // Session might not have PORT set, skip it
+        } catch (sessionError) {
+          this.logger?.debug(
+            { session: sessionName, error: sessionError },
+            'Failed to get PORT for tmux session',
+          )
         }
       }
     } catch (error) {
-      this.logger?.error('Failed to fetch tmux sessions:', error)
+      const errorMessage =
+        error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      this.logger?.error(
+        { err: error, message: errorMessage, stack: errorStack },
+        'Failed to fetch tmux sessions',
+      )
     }
 
     return newMappings
@@ -84,9 +102,11 @@ export class DynamicConfigManager {
 
   async sendNotification(message: string) {
     try {
-      await execAsync(`notify-send "Proxy Mapping Update" "${message}"`)
-    } catch {
-      // Ignore notification errors
+      await execAsync(
+        `notify-send -t 12000 "Proxy Mapping Update" "${message}"`,
+      )
+    } catch (error) {
+      this.logger?.error({ error, message }, 'Failed to send notification')
     }
   }
 
@@ -98,21 +118,30 @@ export class DynamicConfigManager {
       Object.keys(changes.added).length > 0 || changes.removed.length > 0
 
     if (hasChanges) {
+      const oldMappings = this.currentMappings
       this.currentMappings = newMappings
 
-      // Send notifications for changes
+      // Send notifications and log changes to terminal
       for (const [subdomain, port] of Object.entries(changes.added)) {
-        await this.sendNotification(
-          `🟢 New server: ${subdomain} → localhost:${port}`,
-        )
+        const mappingMessage = `${subdomain} ──→ ${port}`
+        await this.sendNotification(`🟢 New server: ${mappingMessage}`)
+        this.logger?.info(`🟢 Server added: ${mappingMessage}`)
       }
 
       for (const subdomain of changes.removed) {
-        await this.sendNotification(`🔴 Server removed: ${subdomain}`)
+        const previousPort = oldMappings[subdomain]
+        const removalMessage = previousPort
+          ? `${subdomain} (was on port ${previousPort})`
+          : subdomain
+        await this.sendNotification(`🔴 Server removed: ${removalMessage}`)
+        this.logger?.info(`🔴 Server removed: ${removalMessage}`)
       }
 
       // Log full mapping to console
-      this.logger?.info('Subdomain mappings updated:', this.currentMappings)
+      this.logger?.info('Subdomain mappings updated:')
+      for (const [subdomain, port] of Object.entries(this.currentMappings)) {
+        this.logger?.info(`  ${subdomain} ──→ ${port}`)
+      }
     }
 
     return hasChanges

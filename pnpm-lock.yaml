@@ -10,6 +10,9 @@ importers:
       '@fastify/http-proxy':
         specifier: ^11.3.0
         version: 11.3.0
+      '@fastify/reply-from':
+        specifier: ^12.1.0
+        version: 12.1.0
       commander:
         specifier: ^12.0.0
         version: 12.1.0

@@ -1,9 +1,6 @@
 import fastify from 'fastify'
-import httpProxy from '@fastify/http-proxy'
-import { ProxyConfig, defaultConfig } from './config.js'
+import replyFrom from '@fastify/reply-from'
 import { DynamicConfigManager } from './dynamic-config.js'
-
-const INVALID_PORT = 9999999
 
 function extractSubdomainAndPort(
   hostname: string,
@@ -19,8 +16,8 @@ function extractSubdomainAndPort(
   return { subdomain, port }
 }
 
-export async function createProxyServer(config: ProxyConfig = defaultConfig) {
-  const configManager = new DynamicConfigManager(config.subdomainToPortMapping)
+export async function createProxyServer() {
+  const configManager = new DynamicConfigManager()
 
   const server = fastify({
     logger: {
@@ -36,48 +33,43 @@ export async function createProxyServer(config: ProxyConfig = defaultConfig) {
 
   configManager.setLogger(server.log)
 
-  await server.register(httpProxy, {
-    upstream: 'http://localhost',
-    prefix: '/',
-    replyOptions: {
-      rewriteRequestHeaders: (_request: any, headers: any) => {
-        const { port } = extractSubdomainAndPort(
-          _request.hostname,
-          configManager,
-        )
+  await server.register(replyFrom)
 
-        if (port) {
-          return {
-            ...headers,
-            host: `localhost:${port}`,
-          }
+  server.all('/*', async (incomingRequest: any, proxyReply: any) => {
+    const requestHostname = incomingRequest.hostname
+    const { subdomain, port } = extractSubdomainAndPort(
+      requestHostname,
+      configManager,
+    )
+
+    if (!subdomain) {
+      return proxyReply.code(404).send({
+        error: 'Not Found',
+        message: 'No subdomain specified in the request',
+        hostname: requestHostname,
+      })
+    }
+
+    if (!port) {
+      return proxyReply.code(503).send({
+        error: 'Service Unavailable',
+        message: `No service found for subdomain: ${subdomain}`,
+        subdomain,
+        availableSubdomains: Object.keys(configManager.subdomainToPortMapping),
+      })
+    }
+
+    const targetUrl = `http://localhost:${port}`
+    server.log.info(`Proxying ${requestHostname} -> ${targetUrl}`)
+
+    return proxyReply.from(targetUrl + incomingRequest.url, {
+      rewriteRequestHeaders: (_req: any, headers: any) => {
+        return {
+          ...headers,
+          host: `localhost:${port}`,
         }
-
-        return headers
       },
-      getUpstream: (request: any) => {
-        const hostname = request.hostname
-        const { subdomain, port } = extractSubdomainAndPort(
-          hostname,
-          configManager,
-        )
-
-        if (!subdomain) {
-          server.log.warn(`No subdomain found in hostname: ${hostname}`)
-          return `http://localhost:${INVALID_PORT}`
-        }
-
-        if (!port) {
-          server.log.warn(`No mapping found for subdomain: ${subdomain}`)
-          return `http://localhost:${INVALID_PORT}`
-        }
-
-        const targetUrl = `http://localhost:${port}`
-        server.log.info(`Proxying ${hostname} -> ${targetUrl}`)
-
-        return targetUrl
-      },
-    },
+    })
   })
 
   server.addHook('onReady', async () => {
@@ -88,6 +80,18 @@ export async function createProxyServer(config: ProxyConfig = defaultConfig) {
   server.addHook('onClose', async () => {
     configManager.stopPolling()
     server.log.info('Stopped polling tmux sessions')
+  })
+
+  server.addHook('onError', async (request, _reply, error) => {
+    server.log.error(
+      {
+        err: error,
+        url: request.url,
+        hostname: request.hostname,
+        method: request.method,
+      },
+      'Proxy error occurred',
+    )
   })
 
   return server
