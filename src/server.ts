@@ -51,10 +51,28 @@ export default async function app(fastify: any, _opts: any) {
 
     return proxyReply.from(targetUrl + incomingRequest.url, {
       rewriteRequestHeaders: (_req: any, headers: any) => {
-        return {
+        const newHeaders: Record<string, string> = {
           ...headers,
           host: `localhost:${port}`,
         }
+
+        if (headers.referer) {
+          try {
+            const refererUrl = new URL(headers.referer)
+            refererUrl.host = `localhost:${port}`
+            newHeaders.referer = refererUrl.toString()
+          } catch {}
+        }
+
+        if (headers.origin) {
+          try {
+            const originUrl = new URL(headers.origin)
+            originUrl.host = `localhost:${port}`
+            newHeaders.origin = originUrl.toString()
+          } catch {}
+        }
+
+        return newHeaders
       },
     })
   })
