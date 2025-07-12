@@ -5,20 +5,19 @@
   "license": "MIT",
   "description": "Arthack Proxy",
   "type": "module",
-  "bin": {
-    "arthack-proxy": "./dist/cli.js"
-  },
   "scripts": {
     "build": "tsup",
     "build:watch": "nodemon --watch src/ --ext ts --exec tsup",
+    "dev": "fastify start -w -l info -P dist/server.js",
+    "start": "fastify start -l info dist/server.js",
     "format": "prettier --write \"**/*.{js,mjs,jsx,ts,tsx,json,md,mdx,css,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"
   },
   "dependencies": {
     "@fastify/reply-from": "^12.1.0",
-    "commander": "^12.0.0",
-    "fastify": "^5.4.0"
+    "fastify": "^5.4.0",
+    "fastify-cli": "^7.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.1",

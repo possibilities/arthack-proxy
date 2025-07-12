@@ -1,4 +1,3 @@
-import fastify from 'fastify'
 import replyFrom from '@fastify/reply-from'
 import { DynamicConfigManager } from './dynamic-config.js'
 
@@ -16,26 +15,14 @@ function extractSubdomainAndPort(
   return { subdomain, port }
 }
 
-export async function createProxyServer() {
+export default async function app(fastify: any, _opts: any) {
   const configManager = new DynamicConfigManager()
 
-  const server = fastify({
-    logger: {
-      level: 'info',
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-        },
-      },
-    },
-  })
+  configManager.setLogger(fastify.log)
 
-  configManager.setLogger(server.log)
+  await fastify.register(replyFrom)
 
-  await server.register(replyFrom)
-
-  server.all('/*', async (incomingRequest: any, proxyReply: any) => {
+  fastify.all('/*', async (incomingRequest: any, proxyReply: any) => {
     const requestHostname = incomingRequest.hostname
     const { subdomain, port } = extractSubdomainAndPort(
       requestHostname,
@@ -60,7 +47,7 @@ export async function createProxyServer() {
     }
 
     const targetUrl = `http://localhost:${port}`
-    server.log.info(`Proxying ${requestHostname} -> ${targetUrl}`)
+    fastify.log.info(`Proxying ${requestHostname} -> ${targetUrl}`)
 
     return proxyReply.from(targetUrl + incomingRequest.url, {
       rewriteRequestHeaders: (_req: any, headers: any) => {
@@ -72,18 +59,18 @@ export async function createProxyServer() {
     })
   })
 
-  server.addHook('onReady', async () => {
+  fastify.addHook('onReady', async () => {
     configManager.startPolling(3000)
-    server.log.info('Started polling tmux sessions for mapping updates')
+    fastify.log.info('Started polling tmux sessions for mapping updates')
   })
 
-  server.addHook('onClose', async () => {
+  fastify.addHook('onClose', async () => {
     configManager.stopPolling()
-    server.log.info('Stopped polling tmux sessions')
+    fastify.log.info('Stopped polling tmux sessions')
   })
 
-  server.addHook('onError', async (request, _reply, error) => {
-    server.log.error(
+  fastify.addHook('onError', async (request: any, _reply: any, error: any) => {
+    fastify.log.error(
       {
         err: error,
         url: request.url,
@@ -93,22 +80,4 @@ export async function createProxyServer() {
       'Proxy error occurred',
     )
   })
-
-  return server
-}
-
-export async function startProxyServer(
-  port: number = 80,
-  host: string = '0.0.0.0',
-) {
-  const server = await createProxyServer()
-
-  try {
-    await server.listen({ port, host })
-    server.log.info(`Proxy server listening on ${host}:${port}`)
-    return server
-  } catch (err) {
-    server.log.error(err)
-    process.exit(1)
-  }
 }
