@@ -1,6 +1,5 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { FastifyInstance } from 'fastify'
 
 const execAsync = promisify(exec)
 
@@ -9,16 +8,22 @@ export interface MappingChange {
   removed: string[]
 }
 
+export interface Logger {
+  info: (message: string | Record<string, any>, ...args: any[]) => void
+  debug: (message: Record<string, any>, description?: string) => void
+  error: (message: Record<string, any>, description?: string) => void
+}
+
 export class DynamicConfigManager {
   private currentMappings: Record<string, number> = {}
   private pollInterval?: NodeJS.Timeout
-  private logger?: FastifyInstance['log']
+  private logger?: Logger
 
   constructor() {
     this.currentMappings = {}
   }
 
-  setLogger(logger: FastifyInstance['log']) {
+  setLogger(logger: Logger) {
     this.logger = logger
   }
 
@@ -103,7 +108,7 @@ export class DynamicConfigManager {
   async sendNotification(message: string) {
     try {
       await execAsync(
-        `notify-send -t 12000 "Proxy Mapping Update" "${message}"`,
+        `notify-send -t 12000 "Service Discovery Update" "${message}"`,
       )
     } catch (error) {
       this.logger?.error({ error, message }, 'Failed to send notification')

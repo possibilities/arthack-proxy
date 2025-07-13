@@ -3,26 +3,21 @@
   "version": "0.1.0",
   "author": "Mike Bannister <notimpossiblemike@gmail.com>",
   "license": "MIT",
-  "description": "Arthack Proxy",
+  "description": "ArtHack Proxy",
   "type": "module",
   "scripts": {
     "build": "tsup",
     "build:watch": "nodemon --watch src/ --ext ts --exec tsup",
-    "dev": "fastify start -w -l info -P dist/server.js",
-    "start": "fastify start -l info dist/server.js",
+    "dev": "nodemon --watch dist --exec node dist/index.js",
+    "start": "node dist/index.js",
     "format": "prettier --write \"**/*.{js,mjs,jsx,ts,tsx,json,md,mdx,css,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"
   },
-  "dependencies": {
-    "@fastify/reply-from": "^12.1.0",
-    "fastify": "^5.4.0",
-    "fastify-cli": "^7.0.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.19.1",
     "nodemon": "^3.1.10",
-    "pino-pretty": "^13.0.0",
     "prettier": "^3.5.3",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
