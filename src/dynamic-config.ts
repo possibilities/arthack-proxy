@@ -88,14 +88,12 @@ export class DynamicConfigManager {
     const added: Record<string, number> = {}
     const removed: string[] = []
 
-    // Find added or changed mappings
     for (const [subdomain, port] of Object.entries(newMappings)) {
       if (this.currentMappings[subdomain] !== port) {
         added[subdomain] = port
       }
     }
 
-    // Find removed mappings
     for (const subdomain of Object.keys(this.currentMappings)) {
       if (!(subdomain in newMappings)) {
         removed.push(subdomain)
@@ -126,7 +124,6 @@ export class DynamicConfigManager {
       const oldMappings = this.currentMappings
       this.currentMappings = newMappings
 
-      // Send notifications and log changes to terminal
       for (const [subdomain, port] of Object.entries(changes.added)) {
         const mappingMessage = `${subdomain} ──→ ${port}`
         await this.sendNotification(`🟢 New server: ${mappingMessage}`)
@@ -142,7 +139,6 @@ export class DynamicConfigManager {
         this.logger?.info(`🔴 Server removed: ${removalMessage}`)
       }
 
-      // Log full mapping to console
       this.logger?.info('Subdomain mappings updated:')
       for (const [subdomain, port] of Object.entries(this.currentMappings)) {
         this.logger?.info(`  ${subdomain} ──→ ${port}`)
@@ -157,7 +153,6 @@ export class DynamicConfigManager {
       clearInterval(this.pollInterval)
     }
 
-    // Initial update
     this.updateMappings()
 
     this.pollInterval = setInterval(() => {
