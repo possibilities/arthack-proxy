@@ -9,9 +9,9 @@ export interface MappingChange {
 }
 
 export interface Logger {
-  info: (message: string | Record<string, any>, ...args: any[]) => void
-  debug: (message: Record<string, any>, description?: string) => void
-  error: (message: Record<string, any>, description?: string) => void
+  info: (message: string | Record<string, unknown>, ...args: unknown[]) => void
+  debug: (message: Record<string, unknown>, description?: string) => void
+  error: (message: Record<string, unknown>, description?: string) => void
 }
 
 export class DynamicConfigManager {
