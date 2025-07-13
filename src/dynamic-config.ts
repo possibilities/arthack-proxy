@@ -1,5 +1,6 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { NginxSiteManager } from './nginx-site-manager.js'
 
 const execAsync = promisify(exec)
 
@@ -18,13 +19,16 @@ export class DynamicConfigManager {
   private currentMappings: Record<string, number> = {}
   private pollInterval?: NodeJS.Timeout
   private logger?: Logger
+  private nginxSiteManager: NginxSiteManager
 
   constructor() {
     this.currentMappings = {}
+    this.nginxSiteManager = new NginxSiteManager()
   }
 
   setLogger(logger: Logger) {
     this.logger = logger
+    this.nginxSiteManager.setLogger(logger)
   }
 
   get subdomainToPortMapping(): Record<string, number> {
@@ -54,22 +58,8 @@ export class DynamicConfigManager {
           if (portMatch) {
             const port = parseInt(portMatch[1], 10)
             newMappings[sessionName] = port
-            this.logger?.debug(
-              { session: sessionName, port },
-              'Found PORT mapping for tmux session',
-            )
-          } else {
-            this.logger?.debug(
-              { session: sessionName },
-              'No PORT environment variable found for tmux session',
-            )
           }
-        } catch (sessionError) {
-          this.logger?.debug(
-            { session: sessionName, error: sessionError },
-            'Failed to get PORT for tmux session',
-          )
-        }
+        } catch (sessionError) {}
       }
     } catch (error) {
       const errorMessage =
@@ -143,6 +133,8 @@ export class DynamicConfigManager {
       for (const [subdomain, port] of Object.entries(this.currentMappings)) {
         this.logger?.info(`  ${subdomain} ──→ ${port}`)
       }
+
+      this.nginxSiteManager.applyMappingChanges(changes)
     }
 
     return hasChanges
@@ -153,6 +145,7 @@ export class DynamicConfigManager {
       clearInterval(this.pollInterval)
     }
 
+    this.nginxSiteManager.clearAllSites()
     this.updateMappings()
 
     this.pollInterval = setInterval(() => {

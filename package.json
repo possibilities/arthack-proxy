@@ -12,7 +12,8 @@
     "start": "node dist/index.js",
     "format": "prettier --write \"**/*.{js,mjs,jsx,ts,tsx,json,md,mdx,css,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
-    "typecheck:watch": "tsc --noEmit --watch"
+    "typecheck:watch": "tsc --noEmit --watch",
+    "clean": "rm -rf dist sites"
   },
   "dependencies": {},
   "devDependencies": {
