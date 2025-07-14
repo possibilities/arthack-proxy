@@ -16,7 +16,13 @@ importers:
       fastify-cli:
         specifier: ^7.0.1
         version: 7.4.0
+      http-proxy:
+        specifier: ^1.18.1
+        version: 1.18.1
     devDependencies:
+      '@types/http-proxy':
+        specifier: ^1.17.8
+        version: 1.17.16
       '@types/node':
         specifier: ^20.19.1
         version: 20.19.1
@@ -523,6 +529,12 @@ packages:
         integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==,
       }
 
+  '@types/http-proxy@1.17.16':
+    resolution:
+      {
+        integrity: sha512-sdWoUajOB1cd0A8cRRQ1cfyWNbmFKLAqBB89Y8x5iYyG/mkJHc0YUH8pdWBy2omi9qtCpiIgGjuwO0dQST2l5w==,
+      }
+
   '@types/node@20.19.1':
     resolution:
       {
@@ -813,6 +825,12 @@ packages:
     engines: { node: '>=18' }
     hasBin: true
 
+  eventemitter3@4.0.7:
+    resolution:
+      {
+        integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==,
+      }
+
   fast-content-type-parse@2.0.1:
     resolution:
       {
@@ -931,6 +949,18 @@ packages:
         integrity: sha512-pVIECanWFC61Hzl2+oOCtoJ3F17kglZC/6N94eRWycFgBH35hHx0Li604ZIzhseh97mf2p0cv7vVrOZGoqhlEg==,
       }
 
+  follow-redirects@1.15.9:
+    resolution:
+      {
+        integrity: sha512-gew4GsXizNgdoRyqmyfMHyAmXsZDk6mHkSxZFCzW9gwlbtOW44CDtYavM+y+72qD/Vq2l550kMF52DT8fOLJqQ==,
+      }
+    engines: { node: '>=4.0' }
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
+
   foreground-child@3.3.1:
     resolution:
       {
@@ -986,6 +1016,13 @@ packages:
       {
         integrity: sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg==,
       }
+
+  http-proxy@1.18.1:
+    resolution:
+      {
+        integrity: sha512-7mz/721AbnJwIVbnaSv1Cz3Am0ZLT/UBwkC92VlxhXv/k/BBQfM2fXElQNC27BVGr0uwUpplYPQM9LnaBMR5NQ==,
+      }
+    engines: { node: '>=8.0.0' }
 
   ignore-by-default@1.0.1:
     resolution:
@@ -1443,6 +1480,12 @@ packages:
         integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==,
       }
     engines: { node: '>=0.10.0' }
+
+  requires-port@1.0.0:
+    resolution:
+      {
+        integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==,
+      }
 
   resolve-from@5.0.0:
     resolution:
@@ -2035,6 +2078,10 @@ snapshots:
 
   '@types/estree@1.0.7': {}
 
+  '@types/http-proxy@1.17.16':
+    dependencies:
+      '@types/node': 20.19.1
+
   '@types/node@20.19.1':
     dependencies:
       undici-types: 6.21.0
@@ -2201,6 +2248,8 @@ snapshots:
       '@esbuild/win32-ia32': 0.25.5
       '@esbuild/win32-x64': 0.25.5
 
+  eventemitter3@4.0.7: {}
+
   fast-content-type-parse@2.0.1: {}
 
   fast-copy@3.0.2: {}
@@ -2295,6 +2344,8 @@ snapshots:
       mlly: 1.7.4
       rollup: 4.43.0
 
+  follow-redirects@1.15.9: {}
+
   foreground-child@3.3.1:
     dependencies:
       cross-spawn: 7.0.6
@@ -2328,6 +2379,14 @@ snapshots:
   has-flag@4.0.0: {}
 
   help-me@5.0.0: {}
+
+  http-proxy@1.18.1:
+    dependencies:
+      eventemitter3: 4.0.7
+      follow-redirects: 1.15.9
+      requires-port: 1.0.0
+    transitivePeerDependencies:
+      - debug
 
   ignore-by-default@1.0.1: {}
 
@@ -2561,6 +2620,8 @@ snapshots:
   real-require@0.2.0: {}
 
   require-from-string@2.0.2: {}
+
+  requires-port@1.0.0: {}
 
   resolve-from@5.0.0: {}
 

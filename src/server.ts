@@ -1,4 +1,6 @@
 import replyFrom from '@fastify/reply-from'
+import httpProxy from 'http-proxy'
+import { IncomingMessage } from 'http'
 import { DynamicConfigManager } from './dynamic-config.js'
 
 function extractSubdomainAndPort(
@@ -18,9 +20,45 @@ function extractSubdomainAndPort(
 export default async function app(fastify: any, _opts: any) {
   const configManager = new DynamicConfigManager()
 
+  const wsProxy = httpProxy.createProxyServer({})
+
+  wsProxy.on('error', (err: Error) => {
+    fastify.log.error({ err }, 'WebSocket proxy error')
+  })
+
   configManager.setLogger(fastify.log)
 
   await fastify.register(replyFrom)
+
+  fastify.server.on(
+    'upgrade',
+    (req: IncomingMessage, socket: any, head: Buffer) => {
+      const hostHeader = req.headers.host || ''
+      const hostname = hostHeader.split(':')[0]
+      const { subdomain, port } = extractSubdomainAndPort(
+        hostname,
+        configManager,
+      )
+
+      if (!subdomain) {
+        socket.write('HTTP/1.1 404 Not Found\r\n\r\n')
+        socket.destroy()
+        return
+      }
+
+      if (!port) {
+        socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n')
+        socket.destroy()
+        return
+      }
+
+      const targetUrl = `ws://localhost:${port}`
+      fastify.log.info(`WebSocket proxying ${hostname} -> ${targetUrl}`)
+
+      req.headers.host = `localhost:${port}`
+      wsProxy.ws(req, socket, head, { target: targetUrl })
+    },
+  )
 
   fastify.all('/*', async (incomingRequest: any, proxyReply: any) => {
     const requestHostname = incomingRequest.hostname
