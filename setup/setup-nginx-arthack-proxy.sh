@@ -8,9 +8,19 @@ echo ""
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "Creating nginx configuration..."
-
 HOSTNAME=$(hostname)
+
+# Check if SSL certificates exist
+if [ ! -f "/etc/nginx/ssl/$HOSTNAME.crt" ] || [ ! -f "/etc/nginx/ssl/$HOSTNAME.key" ]; then
+    echo "ERROR: SSL certificates not found at /etc/nginx/ssl/"
+    echo "Please set up certificates using the dotfiles setup first."
+    echo "Expected files:"
+    echo "  - /etc/nginx/ssl/$HOSTNAME.crt"
+    echo "  - /etc/nginx/ssl/$HOSTNAME.key"
+    exit 1
+fi
+
+echo "Creating nginx configuration..."
 
 # Generate nginx configuration from template
 sed -e "s|PROJECT_DIR|$PROJECT_DIR|g" \
@@ -49,7 +59,7 @@ echo ""
 echo "Nginx is now configured to:"
 echo "  - Return 444 (connection closed) for unmatched requests"
 echo "  - Load site configurations from $PROJECT_DIR/sites/*.conf"
-echo "  - Use mkcert certificates for SSL"
+echo "  - Use wildcard SSL certificates from dotfiles setup"
 echo ""
 echo "Each tmux session with a PORT will be accessible at:"
 echo "  - https://[session-name].$HOSTNAME/"

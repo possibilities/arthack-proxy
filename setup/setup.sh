@@ -6,8 +6,9 @@ echo "=== arthack-proxy Complete Setup ==="
 echo ""
 echo "This script will install and configure everything needed for arthack-proxy:"
 echo "  - nginx web server"
-echo "  - mkcert for SSL certificates"
 echo "  - nginx configuration for dynamic site generation"
+echo ""
+echo "NOTE: SSL certificates must be set up via dotfiles first!"
 echo ""
 echo "Press Enter to continue or Ctrl+C to cancel..."
 read
@@ -16,17 +17,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Step 1: Install nginx
 echo ""
-echo "Step 1/3: Installing nginx..."
+echo "Step 1/2: Installing nginx..."
 bash "$SCRIPT_DIR/install-nginx.sh"
 
-# Step 2: Install mkcert and generate certificates
+# Step 2: Configure nginx for arthack-proxy
 echo ""
-echo "Step 2/3: Setting up SSL certificates..."
-bash "$SCRIPT_DIR/install-mkcert.sh"
-
-# Step 3: Configure nginx for arthack-proxy
-echo ""
-echo "Step 3/3: Configuring nginx for arthack-proxy..."
+echo "Step 2/2: Configuring nginx for arthack-proxy..."
 bash "$SCRIPT_DIR/setup-nginx-arthack-proxy.sh"
 
 echo ""
