@@ -10,6 +10,7 @@ import {
   FastifyError,
 } from 'fastify'
 import { DynamicConfigManager } from './dynamic-config.js'
+import { CertificateManager } from './cert-manager.js'
 
 function extractSubdomainAndPort(
   hostname: string,
@@ -25,13 +26,21 @@ function extractSubdomainAndPort(
   return { subdomain, port }
 }
 
-export default async function app(
-  fastify: FastifyInstance,
-  _opts: FastifyPluginOptions,
-) {
-  const configManager = new DynamicConfigManager()
+interface AppOptions extends FastifyPluginOptions {
+  isHttps?: boolean
+}
 
-  const wsProxy = httpProxy.createProxyServer({})
+export default async function app(fastify: FastifyInstance, opts: AppOptions) {
+  const configManager = new DynamicConfigManager()
+  const certManager = new CertificateManager()
+
+  const isHttps = opts.isHttps === true
+  const protocol = isHttps ? 'https' : 'http'
+
+  const wsProxy = httpProxy.createProxyServer({
+    ws: true,
+    changeOrigin: true,
+  })
 
   wsProxy.on('error', (err: Error) => {
     fastify.log.error({ err }, 'WebSocket proxy error')
@@ -64,7 +73,9 @@ export default async function app(
       }
 
       const targetUrl = `ws://localhost:${port}`
-      fastify.log.info(`WebSocket proxying ${hostname} -> ${targetUrl}`)
+      fastify.log.info(
+        `WebSocket proxying ${protocol}://${hostname} -> ${targetUrl}`,
+      )
 
       req.headers.host = `localhost:${port}`
       wsProxy.ws(req, socket, head, { target: targetUrl })
@@ -100,7 +111,9 @@ export default async function app(
       }
 
       const targetUrl = `http://localhost:${port}`
-      fastify.log.info(`Proxying ${requestHostname} -> ${targetUrl}`)
+      fastify.log.info(
+        `Proxying ${protocol}://${requestHostname} -> ${targetUrl}`,
+      )
 
       return proxyReply.from(targetUrl + incomingRequest.url, {
         rewriteRequestHeaders: (_req, headers) => {
@@ -134,6 +147,21 @@ export default async function app(
   fastify.addHook('onReady', async () => {
     configManager.startPolling(3000)
     fastify.log.info('Started polling tmux sessions for mapping updates')
+
+    if (isHttps) {
+      fastify.log.info('🔐 HTTPS enabled with local certificates')
+    } else if (certManager.hasCertificates()) {
+      const paths = certManager.getCertificatePaths()
+      fastify.log.info('📜 Certificates found but HTTPS not enabled')
+      fastify.log.info(
+        `   To enable HTTPS, the server needs to be started with certificate configuration`,
+      )
+      fastify.log.info(`   Certificates available at:`)
+      fastify.log.info(`   - ${paths.cert}`)
+      fastify.log.info(`   - ${paths.key}`)
+    } else {
+      fastify.log.info('💡 To enable HTTPS, run: npm run setup:certs')
+    }
   })
 
   fastify.addHook('onClose', async () => {

@@ -8,8 +8,9 @@
   "scripts": {
     "build": "tsup",
     "build:watch": "nodemon --watch src/ --ext ts --exec tsup",
-    "dev": "fastify start -w -l info -P dist/server.js",
-    "start": "fastify start -l info dist/server.js",
+    "dev": "nodemon --watch src/ --ext ts --exec \"tsup && node dist/start.js\"",
+    "start": "node dist/start.js",
+    "setup:certs": "./scripts/setup-certs.sh",
     "format": "prettier --write \"**/*.{js,mjs,jsx,ts,tsx,json,md,mdx,css,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"
