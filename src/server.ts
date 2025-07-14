@@ -1,6 +1,14 @@
 import replyFrom from '@fastify/reply-from'
 import httpProxy from 'http-proxy'
-import { IncomingMessage } from 'http'
+import { IncomingMessage, IncomingHttpHeaders } from 'http'
+import * as net from 'net'
+import {
+  FastifyInstance,
+  FastifyPluginOptions,
+  FastifyRequest,
+  FastifyReply,
+  FastifyError,
+} from 'fastify'
 import { DynamicConfigManager } from './dynamic-config.js'
 
 function extractSubdomainAndPort(
@@ -17,7 +25,10 @@ function extractSubdomainAndPort(
   return { subdomain, port }
 }
 
-export default async function app(fastify: any, _opts: any) {
+export default async function app(
+  fastify: FastifyInstance,
+  _opts: FastifyPluginOptions,
+) {
   const configManager = new DynamicConfigManager()
 
   const wsProxy = httpProxy.createProxyServer({})
@@ -32,7 +43,7 @@ export default async function app(fastify: any, _opts: any) {
 
   fastify.server.on(
     'upgrade',
-    (req: IncomingMessage, socket: any, head: Buffer) => {
+    (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
       const hostHeader = req.headers.host || ''
       const hostname = hostHeader.split(':')[0]
       const { subdomain, port } = extractSubdomainAndPort(
@@ -60,60 +71,65 @@ export default async function app(fastify: any, _opts: any) {
     },
   )
 
-  fastify.all('/*', async (incomingRequest: any, proxyReply: any) => {
-    const requestHostname = incomingRequest.hostname
-    const { subdomain, port } = extractSubdomainAndPort(
-      requestHostname,
-      configManager,
-    )
+  fastify.all(
+    '/*',
+    async (incomingRequest: FastifyRequest, proxyReply: FastifyReply) => {
+      const requestHostname = incomingRequest.hostname
+      const { subdomain, port } = extractSubdomainAndPort(
+        requestHostname,
+        configManager,
+      )
 
-    if (!subdomain) {
-      return proxyReply.code(404).send({
-        error: 'Not Found',
-        message: 'No subdomain specified in the request',
-        hostname: requestHostname,
+      if (!subdomain) {
+        return proxyReply.code(404).send({
+          error: 'Not Found',
+          message: 'No subdomain specified in the request',
+          hostname: requestHostname,
+        })
+      }
+
+      if (!port) {
+        return proxyReply.code(503).send({
+          error: 'Service Unavailable',
+          message: `No service found for subdomain: ${subdomain}`,
+          subdomain,
+          availableSubdomains: Object.keys(
+            configManager.subdomainToPortMapping,
+          ),
+        })
+      }
+
+      const targetUrl = `http://localhost:${port}`
+      fastify.log.info(`Proxying ${requestHostname} -> ${targetUrl}`)
+
+      return proxyReply.from(targetUrl + incomingRequest.url, {
+        rewriteRequestHeaders: (_req, headers) => {
+          const newHeaders: IncomingHttpHeaders = {
+            ...headers,
+            host: `localhost:${port}`,
+          }
+
+          if (headers.referer) {
+            try {
+              const refererUrl = new URL(headers.referer)
+              refererUrl.host = `localhost:${port}`
+              newHeaders.referer = refererUrl.toString()
+            } catch {}
+          }
+
+          if (headers.origin) {
+            try {
+              const originUrl = new URL(headers.origin)
+              originUrl.host = `localhost:${port}`
+              newHeaders.origin = originUrl.toString()
+            } catch {}
+          }
+
+          return newHeaders
+        },
       })
-    }
-
-    if (!port) {
-      return proxyReply.code(503).send({
-        error: 'Service Unavailable',
-        message: `No service found for subdomain: ${subdomain}`,
-        subdomain,
-        availableSubdomains: Object.keys(configManager.subdomainToPortMapping),
-      })
-    }
-
-    const targetUrl = `http://localhost:${port}`
-    fastify.log.info(`Proxying ${requestHostname} -> ${targetUrl}`)
-
-    return proxyReply.from(targetUrl + incomingRequest.url, {
-      rewriteRequestHeaders: (_req: any, headers: any) => {
-        const newHeaders: Record<string, string> = {
-          ...headers,
-          host: `localhost:${port}`,
-        }
-
-        if (headers.referer) {
-          try {
-            const refererUrl = new URL(headers.referer)
-            refererUrl.host = `localhost:${port}`
-            newHeaders.referer = refererUrl.toString()
-          } catch {}
-        }
-
-        if (headers.origin) {
-          try {
-            const originUrl = new URL(headers.origin)
-            originUrl.host = `localhost:${port}`
-            newHeaders.origin = originUrl.toString()
-          } catch {}
-        }
-
-        return newHeaders
-      },
-    })
-  })
+    },
+  )
 
   fastify.addHook('onReady', async () => {
     configManager.startPolling(3000)
@@ -125,15 +141,22 @@ export default async function app(fastify: any, _opts: any) {
     fastify.log.info('Stopped polling tmux sessions')
   })
 
-  fastify.addHook('onError', async (request: any, _reply: any, error: any) => {
-    fastify.log.error(
-      {
-        err: error,
-        url: request.url,
-        hostname: request.hostname,
-        method: request.method,
-      },
-      'Proxy error occurred',
-    )
-  })
+  fastify.addHook(
+    'onError',
+    async (
+      request: FastifyRequest,
+      _reply: FastifyReply,
+      error: FastifyError,
+    ) => {
+      fastify.log.error(
+        {
+          err: error,
+          url: request.url,
+          hostname: request.hostname,
+          method: request.method,
+        },
+        'Proxy error occurred',
+      )
+    },
+  )
 }
