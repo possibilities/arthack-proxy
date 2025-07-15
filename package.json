@@ -3,26 +3,33 @@
   "version": "0.1.0",
   "author": "Mike Bannister <notimpossiblemike@gmail.com>",
   "license": "MIT",
-  "description": "Arthack Proxy",
+  "description": "Arthack Proxy - Dynamic subdomain proxy for local development",
   "type": "module",
+  "bin": {
+    "arthack": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsup",
     "build:watch": "nodemon --watch src/ --ext ts --exec tsup",
-    "dev": "nodemon --watch src/ --ext ts --exec \"tsup && node dist/start.js\"",
-    "start": "node dist/start.js",
-    "setup:certs": "./scripts/setup-certs.sh",
+    "check:dns": "./scripts/check-dns.sh",
+    "setup:dns-simple": "./scripts/setup-dns-simple.sh",
     "format": "prettier --write \"**/*.{js,mjs,jsx,ts,tsx,json,md,mdx,css,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"
   },
   "dependencies": {
     "@fastify/reply-from": "^12.1.0",
+    "chalk": "^5.4.1",
+    "commander": "^14.0.0",
     "fastify": "^5.4.0",
     "fastify-cli": "^7.0.1",
-    "http-proxy": "^1.18.1"
+    "http-proxy": "^1.18.1",
+    "prompts": "^2.4.2",
+    "ora": "^8.2.0"
   },
   "devDependencies": {
     "@types/http-proxy": "^1.17.8",
+    "@types/prompts": "^2.4.9",
     "@types/node": "^20.19.1",
     "nodemon": "^3.1.10",
     "pino-pretty": "^13.0.0",

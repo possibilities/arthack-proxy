@@ -2,8 +2,7 @@ import { defineConfig } from 'tsup'
 
 export default defineConfig({
   entry: {
-    server: 'src/server.ts',
-    start: 'src/start.ts',
+    cli: 'src/index.ts',
   },
   format: ['esm'],
   target: 'node18',
@@ -18,6 +17,9 @@ export default defineConfig({
     }
   },
   esbuildOptions(options) {
+    options.banner = {
+      js: '#!/usr/bin/env node',
+    }
     options.platform = 'node'
     options.format = 'esm'
   },

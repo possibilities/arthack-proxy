@@ -160,7 +160,7 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
       fastify.log.info(`   - ${paths.cert}`)
       fastify.log.info(`   - ${paths.key}`)
     } else {
-      fastify.log.info('💡 To enable HTTPS, run: npm run setup:certs')
+      fastify.log.info('💡 To enable HTTPS, run: arthack setup:certs')
     }
   })
 
