@@ -28,6 +28,7 @@ function extractSubdomainAndPort(
 
 interface AppOptions extends FastifyPluginOptions {
   isHttps?: boolean
+  targetHost?: string
 }
 
 export default async function app(fastify: FastifyInstance, opts: AppOptions) {
@@ -36,6 +37,7 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
 
   const isHttps = opts.isHttps === true
   const protocol = isHttps ? 'https' : 'http'
+  const targetHost = opts.targetHost || 'localhost'
 
   const wsProxy = httpProxy.createProxyServer({
     ws: true,
@@ -72,12 +74,12 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
         return
       }
 
-      const targetUrl = `ws://localhost:${port}`
+      const targetUrl = `ws://${targetHost}:${port}`
       fastify.log.info(
         `WebSocket proxying ${protocol}://${hostname} -> ${targetUrl}`,
       )
 
-      req.headers.host = `localhost:${port}`
+      req.headers.host = `${targetHost}:${port}`
       wsProxy.ws(req, socket, head, { target: targetUrl })
     },
   )
@@ -110,7 +112,7 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
         })
       }
 
-      const targetUrl = `http://localhost:${port}`
+      const targetUrl = `http://${targetHost}:${port}`
       fastify.log.info(
         `Proxying ${protocol}://${requestHostname} -> ${targetUrl}`,
       )
@@ -119,13 +121,13 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
         rewriteRequestHeaders: (_req, headers) => {
           const newHeaders: IncomingHttpHeaders = {
             ...headers,
-            host: `localhost:${port}`,
+            host: `${targetHost}:${port}`,
           }
 
           if (headers.referer) {
             try {
               const refererUrl = new URL(headers.referer)
-              refererUrl.host = `localhost:${port}`
+              refererUrl.host = `${targetHost}:${port}`
               newHeaders.referer = refererUrl.toString()
             } catch {}
           }
@@ -133,7 +135,7 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
           if (headers.origin) {
             try {
               const originUrl = new URL(headers.origin)
-              originUrl.host = `localhost:${port}`
+              originUrl.host = `${targetHost}:${port}`
               newHeaders.origin = originUrl.toString()
             } catch {}
           }
@@ -147,6 +149,7 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
   fastify.addHook('onReady', async () => {
     configManager.startPolling(3000)
     fastify.log.info('Started polling tmux sessions for mapping updates')
+    fastify.log.info(`Proxying to target host: ${targetHost}`)
 
     if (isHttps) {
       fastify.log.info('🔐 HTTPS enabled with local certificates')

@@ -10,6 +10,7 @@ interface StartOptions {
   host: string
   httpPort: string
   https: boolean
+  targetHost: string
 }
 
 export async function startCommand(options: StartOptions) {
@@ -48,7 +49,10 @@ export async function startCommand(options: StartOptions) {
       https: certificateConfig,
     })
 
-    await httpsServer.register(app, { isHttps: true })
+    await httpsServer.register(app, {
+      isHttps: true,
+      targetHost: options.targetHost,
+    })
 
     try {
       const httpSpinner = ora('Starting HTTP redirect server...').start()
@@ -65,6 +69,7 @@ export async function startCommand(options: StartOptions) {
         chalk.gray(`   📡 HTTP  on port ${httpPort}  → redirects to HTTPS`),
       )
       console.log(chalk.gray(`   🔐 HTTPS on port ${httpsPort}`))
+      console.log(chalk.gray(`   🎯 Proxying to ${options.targetHost}`))
       console.log('')
       console.log(chalk.cyan('🌐 Access your services at:'))
       console.log(chalk.white(`   https://subdomain.localhost`))
@@ -94,13 +99,20 @@ export async function startCommand(options: StartOptions) {
     }
 
     const httpServer = Fastify({ logger: loggerConfig })
-    await httpServer.register(app, { isHttps: false })
+    await httpServer.register(app, {
+      isHttps: false,
+      targetHost: options.targetHost,
+    })
 
     try {
       const spinner = ora('Starting HTTP server...').start()
       await httpServer.listen({ port: httpPort, host: bindHost })
       spinner.succeed(`HTTP server listening on port ${httpPort}`)
 
+      console.log('')
+      console.log(chalk.green('🚀 Server running:'))
+      console.log(chalk.gray(`   📡 HTTP on port ${httpPort}`))
+      console.log(chalk.gray(`   🎯 Proxying to ${options.targetHost}`))
       console.log('')
       console.log(chalk.cyan('🌐 Access your services at:'))
       console.log(chalk.white(`   http://subdomain.localhost:${httpPort}`))

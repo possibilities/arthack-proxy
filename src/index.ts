@@ -30,6 +30,7 @@ program
   .option('-h, --host <string>', 'Host to bind to', '0.0.0.0')
   .option('--http-port <number>', 'HTTP port for redirect server', '80')
   .option('--no-https', 'Disable HTTPS and run HTTP only')
+  .option('--target-host <host>', 'Host to proxy requests to', 'localhost')
   .action(async options => {
     await startCommand(options)
   })
