@@ -11,8 +11,6 @@
   "scripts": {
     "build": "tsup",
     "build:watch": "nodemon --watch src/ --ext ts --exec tsup",
-    "check:dns": "./scripts/check-dns.sh",
-    "setup:dns-simple": "./scripts/setup-dns-simple.sh",
     "format": "prettier --write \"**/*.{js,mjs,jsx,ts,tsx,json,md,mdx,css,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"

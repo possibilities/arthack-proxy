@@ -33,15 +33,44 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
   const systemHostname = options.hostname || hostname()
 
   if (!commandExists('mkcert')) {
-    console.log(chalk.red('❌ mkcert is not installed'))
-    console.log(chalk.yellow('\nTo install mkcert:'))
-    console.log(chalk.gray('  macOS:  brew install mkcert'))
-    console.log(
-      chalk.gray(
-        '  Linux:  https://github.com/FiloSottile/mkcert#installation',
-      ),
-    )
-    process.exit(1)
+    console.log(chalk.yellow('📦 mkcert is not installed'))
+
+    const { install } = await prompts({
+      type: 'confirm',
+      name: 'install',
+      message: 'Install mkcert for SSL certificate generation?',
+      initial: true,
+    })
+
+    if (install) {
+      const installSpinner = ora('Installing mkcert...').start()
+      try {
+        const mkcertUrl =
+          'https://github.com/FiloSottile/mkcert/releases/latest/download/mkcert-linux-amd64'
+        execSync(`curl -L -o /tmp/mkcert ${mkcertUrl}`, { stdio: 'pipe' })
+        execSync('sudo mv /tmp/mkcert /usr/local/bin/mkcert', { stdio: 'pipe' })
+        execSync('sudo chmod +x /usr/local/bin/mkcert', { stdio: 'pipe' })
+        installSpinner.succeed('mkcert installed successfully')
+      } catch (error) {
+        installSpinner.fail('Failed to install mkcert')
+        console.error(error)
+        console.log(chalk.yellow('\nTo install mkcert manually:'))
+        console.log(
+          chalk.gray(
+            '  Visit: https://github.com/FiloSottile/mkcert#installation',
+          ),
+        )
+        process.exit(1)
+      }
+    } else {
+      console.log(chalk.yellow('\n⏭️  Skipped. To install mkcert manually:'))
+      console.log(
+        chalk.gray(
+          '  Visit: https://github.com/FiloSottile/mkcert#installation',
+        ),
+      )
+      process.exit(0)
+    }
   }
 
   console.log(chalk.green('✅ mkcert is installed'))
