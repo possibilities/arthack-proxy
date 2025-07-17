@@ -12,7 +12,7 @@ export async function listCommand(options: ListOptions) {
   const configManager = new DynamicConfigManager(targetHost)
   const systemHostname = hostname()
 
-  async function displayMappings() {
+  async function fetchAndDisplayMappings() {
     const mappings = await configManager.fetchTmuxSessions()
     const entries = Object.entries(mappings)
 
@@ -57,15 +57,24 @@ export async function listCommand(options: ListOptions) {
     )
   }
 
-  await displayMappings()
+  await fetchAndDisplayMappings()
 
   if (options.watch) {
     console.log(
       chalk.gray('\n👀 Watching for changes... (Press Ctrl+C to exit)'),
     )
 
-    setInterval(async () => {
-      await displayMappings()
+    const intervalId = setInterval(async () => {
+      try {
+        await fetchAndDisplayMappings()
+      } catch (error) {
+        console.error(chalk.red('Error fetching mappings:'), error)
+      }
     }, 3000)
+
+    process.on('SIGINT', () => {
+      clearInterval(intervalId)
+      process.exit(0)
+    })
   }
 }

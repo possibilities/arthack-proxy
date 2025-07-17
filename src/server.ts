@@ -26,6 +26,22 @@ function extractSubdomainAndPort(
   return { subdomain, port }
 }
 
+function rewriteUrlHeader(
+  headerValue: string | undefined,
+  targetHost: string,
+  targetPort: number,
+): string | undefined {
+  if (!headerValue) return headerValue
+
+  try {
+    const url = new URL(headerValue)
+    url.host = `${targetHost}:${targetPort}`
+    return url.toString()
+  } catch {
+    return headerValue
+  }
+}
+
 interface AppOptions extends FastifyPluginOptions {
   isHttps?: boolean
   targetHost?: string
@@ -39,12 +55,12 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
   const isHttps = opts.isHttps === true
   const protocol = isHttps ? 'https' : 'http'
 
-  const wsProxy = httpProxy.createProxyServer({
+  const webSocketProxy = httpProxy.createProxyServer({
     ws: true,
     changeOrigin: true,
   })
 
-  wsProxy.on('error', (err: Error) => {
+  webSocketProxy.on('error', (err: Error) => {
     fastify.log.error({ err }, 'WebSocket proxy error')
   })
 
@@ -80,7 +96,7 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
       )
 
       req.headers.host = `${targetHost}:${port}`
-      wsProxy.ws(req, socket, head, { target: targetUrl })
+      webSocketProxy.ws(req, socket, head, { target: targetUrl })
     },
   )
 
@@ -124,21 +140,12 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
             host: `${targetHost}:${port}`,
           }
 
-          if (headers.referer) {
-            try {
-              const refererUrl = new URL(headers.referer)
-              refererUrl.host = `${targetHost}:${port}`
-              newHeaders.referer = refererUrl.toString()
-            } catch {}
-          }
-
-          if (headers.origin) {
-            try {
-              const originUrl = new URL(headers.origin)
-              originUrl.host = `${targetHost}:${port}`
-              newHeaders.origin = originUrl.toString()
-            } catch {}
-          }
+          newHeaders.referer = rewriteUrlHeader(
+            headers.referer,
+            targetHost,
+            port,
+          )
+          newHeaders.origin = rewriteUrlHeader(headers.origin, targetHost, port)
 
           return newHeaders
         },

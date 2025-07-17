@@ -9,6 +9,16 @@ import { setupDnsCommand } from './commands/setup-dns.js'
 import { checkDnsCommand } from './commands/check-dns.js'
 import { listCommand } from './commands/list.js'
 
+function parsePort(value: string): number {
+  const port = parseInt(value, 10)
+  if (isNaN(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `Invalid port number: ${value}. Must be between 1 and 65535.`,
+    )
+  }
+  return port
+}
+
 const require = createRequire(import.meta.url)
 const currentModulePath = fileURLToPath(import.meta.url)
 const currentDirectory = dirname(currentModulePath)
@@ -26,9 +36,14 @@ program
   .version(packageJson.version)
   .option('-v, --verbose', 'Enable verbose logging')
   .option('-c, --config <path>', 'Path to configuration file')
-  .option('-p, --port <number>', 'Port to run the server on', '443')
+  .option('-p, --port <number>', 'Port to run the server on', parsePort, 443)
   .option('-h, --host <string>', 'Host to bind to', '0.0.0.0')
-  .option('--http-port <number>', 'HTTP port for redirect server', '80')
+  .option(
+    '--http-port <number>',
+    'HTTP port for redirect server',
+    parsePort,
+    80,
+  )
   .option('--no-https', 'Disable HTTPS and run HTTP only')
   .option('--target-host <host>', 'Host to proxy requests to', 'localhost')
   .action(async options => {

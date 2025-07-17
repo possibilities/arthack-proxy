@@ -2,11 +2,35 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import { FastifyInstance } from 'fastify'
 
-const execAsync = promisify(exec)
+const executeCommand = promisify(exec)
 
 export interface MappingChange {
   added: Record<string, number>
   removed: string[]
+}
+
+function escapeShellArg(arg: string): string {
+  return "'" + arg.replace(/'/g, "'\"'\"'") + "'"
+}
+
+function validateHost(host: string): void {
+  if (!host || host.trim() !== host) {
+    throw new Error('Invalid host: contains leading/trailing whitespace')
+  }
+  if (/[;&|<>$`\\]/.test(host)) {
+    throw new Error('Invalid host: contains shell metacharacters')
+  }
+}
+
+function validatePort(port: number): boolean {
+  return Number.isInteger(port) && port >= 1 && port <= 65535
+}
+
+function constructSSHCommand(host: string, command: string): string {
+  if (host === 'localhost') {
+    return command
+  }
+  return `ssh ${escapeShellArg(host)} ${escapeShellArg(command)}`
 }
 
 export class DynamicConfigManager {
@@ -17,6 +41,7 @@ export class DynamicConfigManager {
 
   constructor(targetHost: string = 'localhost') {
     this.currentMappings = {}
+    validateHost(targetHost)
     this.targetHost = targetHost
   }
 
@@ -34,9 +59,8 @@ export class DynamicConfigManager {
     }
 
     try {
-      // Test SSH connection with a simple command
-      await execAsync(
-        `ssh -o ConnectTimeout=5 ${this.targetHost} 'echo connected'`,
+      await executeCommand(
+        `ssh -o ConnectTimeout=5 ${escapeShellArg(this.targetHost)} 'echo connected'`,
       )
       return true
     } catch (error) {
@@ -54,12 +78,9 @@ export class DynamicConfigManager {
     try {
       const tmuxCommand =
         'tmux -L tmux-composer-system list-sessions -F "#{session_name}"'
-      const command =
-        this.targetHost === 'localhost'
-          ? tmuxCommand
-          : `ssh ${this.targetHost} '${tmuxCommand}'`
+      const command = constructSSHCommand(this.targetHost, tmuxCommand)
 
-      const { stdout: sessionsOutput } = await execAsync(command)
+      const { stdout: sessionsOutput } = await executeCommand(command)
 
       const sessions = sessionsOutput
         .trim()
@@ -69,17 +90,24 @@ export class DynamicConfigManager {
       for (const sessionName of sessions) {
         try {
           const tmuxEnvCommand = `tmux -L tmux-composer-system show-environment -t "${sessionName}" PORT 2>/dev/null || true`
-          const envCommand =
-            this.targetHost === 'localhost'
-              ? tmuxEnvCommand
-              : `ssh ${this.targetHost} '${tmuxEnvCommand}'`
+          const envCommand = constructSSHCommand(
+            this.targetHost,
+            tmuxEnvCommand,
+          )
 
-          const { stdout: portOutput } = await execAsync(envCommand)
+          const { stdout: portOutput } = await executeCommand(envCommand)
 
           const portMatch = portOutput.match(/^PORT=(\d+)/)
           if (portMatch) {
             const port = parseInt(portMatch[1], 10)
-            newMappings[sessionName] = port
+            if (validatePort(port)) {
+              newMappings[sessionName] = port
+            } else {
+              this.logger?.warn(
+                { session: sessionName, port },
+                'Invalid port number for tmux session',
+              )
+            }
             this.logger?.debug(
               { session: sessionName, port },
               'Found PORT mapping for tmux session',
@@ -133,18 +161,16 @@ export class DynamicConfigManager {
     return newMappings
   }
 
-  detectChanges(newMappings: Record<string, number>): MappingChange {
+  compareAndDetectChanges(newMappings: Record<string, number>): MappingChange {
     const added: Record<string, number> = {}
     const removed: string[] = []
 
-    // Find added or changed mappings
     for (const [subdomain, port] of Object.entries(newMappings)) {
       if (this.currentMappings[subdomain] !== port) {
         added[subdomain] = port
       }
     }
 
-    // Find removed mappings
     for (const subdomain of Object.keys(this.currentMappings)) {
       if (!(subdomain in newMappings)) {
         removed.push(subdomain)
@@ -156,16 +182,21 @@ export class DynamicConfigManager {
 
   async sendNotification(message: string) {
     try {
-      await execAsync(
-        `notify-send -t 12000 "Proxy Mapping Update" "${message}"`,
+      await executeCommand(
+        `notify-send -t 12000 "Proxy Mapping Update" ${escapeShellArg(message)}`,
       )
     } catch (error) {
-      this.logger?.error({ error, message }, 'Failed to send notification')
+      this.logger?.debug({ error, message }, 'notify-send not available')
     }
   }
 
+  private async notifyAndLog(message: string, icon: string) {
+    const fullMessage = `${icon} ${message}`
+    await this.sendNotification(fullMessage)
+    this.logger?.info(fullMessage)
+  }
+
   async updateMappings(): Promise<boolean> {
-    // Test SSH connection first if using remote host
     if (this.targetHost !== 'localhost') {
       const isConnected = await this.testSSHConnection()
       if (!isConnected) {
@@ -177,7 +208,7 @@ export class DynamicConfigManager {
     }
 
     const newMappings = await this.fetchTmuxSessions()
-    const changes = this.detectChanges(newMappings)
+    const changes = this.compareAndDetectChanges(newMappings)
 
     const hasChanges =
       Object.keys(changes.added).length > 0 || changes.removed.length > 0
@@ -186,11 +217,9 @@ export class DynamicConfigManager {
       const oldMappings = this.currentMappings
       this.currentMappings = newMappings
 
-      // Send notifications and log changes to terminal
       for (const [subdomain, port] of Object.entries(changes.added)) {
         const mappingMessage = `${subdomain} ──→ ${port}`
-        await this.sendNotification(`🟢 New server: ${mappingMessage}`)
-        this.logger?.info(`🟢 Server added: ${mappingMessage}`)
+        await this.notifyAndLog(`New server: ${mappingMessage}`, '🟢')
       }
 
       for (const subdomain of changes.removed) {
@@ -198,11 +227,9 @@ export class DynamicConfigManager {
         const removalMessage = previousPort
           ? `${subdomain} (was on port ${previousPort})`
           : subdomain
-        await this.sendNotification(`🔴 Server removed: ${removalMessage}`)
-        this.logger?.info(`🔴 Server removed: ${removalMessage}`)
+        await this.notifyAndLog(`Server removed: ${removalMessage}`, '🔴')
       }
 
-      // Log full mapping to console
       this.logger?.info('Subdomain mappings updated:')
       for (const [subdomain, port] of Object.entries(this.currentMappings)) {
         this.logger?.info(`  ${subdomain} ──→ ${port}`)
@@ -217,7 +244,6 @@ export class DynamicConfigManager {
       clearInterval(this.pollInterval)
     }
 
-    // Initial update
     this.updateMappings()
 
     this.pollInterval = setInterval(() => {

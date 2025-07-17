@@ -6,9 +6,9 @@ import { CertificateManager } from '../cert-manager.js'
 import app from '../server.js'
 
 interface StartOptions {
-  port: string
+  port: number
   host: string
-  httpPort: string
+  httpPort: number
   https: boolean
   targetHost: string
 }
@@ -30,8 +30,8 @@ export async function startCommand(options: StartOptions) {
   }
 
   const useHttps = options.https && certificateConfig !== null
-  const httpsPort = parseInt(options.port, 10)
-  const httpPort = parseInt(options.httpPort, 10)
+  const httpsPort = options.port
+  const httpPort = options.httpPort
   const bindHost = options.host
 
   if (useHttps) {
