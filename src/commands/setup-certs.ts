@@ -21,6 +21,8 @@ interface SetupCertsOptions {
 function commandExists(command: string): boolean {
   try {
     execSync(`which ${command}`, { stdio: 'ignore' })
+    // Also verify it's actually executable, not a text file
+    execSync(`${command} --version`, { stdio: 'ignore' })
     return true
   } catch {
     return false
@@ -34,6 +36,18 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
 
   if (!commandExists('mkcert')) {
     console.log(chalk.yellow('📦 mkcert is not installed'))
+
+    // Check if there's a corrupted mkcert file
+    if (existsSync('/usr/local/bin/mkcert')) {
+      console.log(
+        chalk.yellow('Found corrupted mkcert installation, removing...'),
+      )
+      try {
+        execSync('sudo rm /usr/local/bin/mkcert', { stdio: 'pipe' })
+      } catch {
+        // Ignore errors
+      }
+    }
 
     const { install } = await prompts({
       type: 'confirm',
