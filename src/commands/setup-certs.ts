@@ -45,9 +45,10 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
     if (install) {
       const installSpinner = ora('Installing mkcert...').start()
       try {
-        const mkcertUrl =
-          'https://github.com/FiloSottile/mkcert/releases/latest/download/mkcert-linux-amd64'
-        execSync(`curl -L -o /tmp/mkcert ${mkcertUrl}`, { stdio: 'pipe' })
+        execSync(
+          `curl -s https://api.github.com/repos/FiloSottile/mkcert/releases/latest | grep '"browser_download_url".*linux-amd64' | cut -d'"' -f4 | xargs curl -L -o /tmp/mkcert`,
+          { stdio: 'pipe' },
+        )
         execSync('sudo mv /tmp/mkcert /usr/local/bin/mkcert', { stdio: 'pipe' })
         execSync('sudo chmod +x /usr/local/bin/mkcert', { stdio: 'pipe' })
         installSpinner.succeed('mkcert installed successfully')
