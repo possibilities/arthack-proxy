@@ -59,6 +59,11 @@ program
   .alias('ls')
   .description('List active proxy mappings')
   .option('-w, --watch', 'Watch for changes in real-time')
+  .option(
+    '--target-host <host>',
+    'Host to query tmux sessions from',
+    'localhost',
+  )
   .action(listCommand)
 
 program.parse(process.argv)

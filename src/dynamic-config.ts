@@ -13,9 +13,11 @@ export class DynamicConfigManager {
   private currentMappings: Record<string, number> = {}
   private pollInterval?: NodeJS.Timeout
   private logger?: FastifyInstance['log']
+  private targetHost: string
 
-  constructor() {
+  constructor(targetHost: string = 'localhost') {
     this.currentMappings = {}
+    this.targetHost = targetHost
   }
 
   setLogger(logger: FastifyInstance['log']) {
@@ -26,13 +28,38 @@ export class DynamicConfigManager {
     return { ...this.currentMappings }
   }
 
+  async testSSHConnection(): Promise<boolean> {
+    if (this.targetHost === 'localhost') {
+      return true
+    }
+
+    try {
+      // Test SSH connection with a simple command
+      await execAsync(
+        `ssh -o ConnectTimeout=5 ${this.targetHost} 'echo connected'`,
+      )
+      return true
+    } catch (error) {
+      this.logger?.error(
+        { targetHost: this.targetHost, error },
+        `SSH connection test failed to ${this.targetHost}`,
+      )
+      return false
+    }
+  }
+
   async fetchTmuxSessions(): Promise<Record<string, number>> {
     const newMappings: Record<string, number> = {}
 
     try {
-      const { stdout: sessionsOutput } = await execAsync(
-        'tmux -L tmux-composer-system list-sessions -F "#{session_name}"',
-      )
+      const tmuxCommand =
+        'tmux -L tmux-composer-system list-sessions -F "#{session_name}"'
+      const command =
+        this.targetHost === 'localhost'
+          ? tmuxCommand
+          : `ssh ${this.targetHost} '${tmuxCommand}'`
+
+      const { stdout: sessionsOutput } = await execAsync(command)
 
       const sessions = sessionsOutput
         .trim()
@@ -41,9 +68,13 @@ export class DynamicConfigManager {
 
       for (const sessionName of sessions) {
         try {
-          const { stdout: portOutput } = await execAsync(
-            `tmux -L tmux-composer-system show-environment -t "${sessionName}" PORT 2>/dev/null || true`,
-          )
+          const tmuxEnvCommand = `tmux -L tmux-composer-system show-environment -t "${sessionName}" PORT 2>/dev/null || true`
+          const envCommand =
+            this.targetHost === 'localhost'
+              ? tmuxEnvCommand
+              : `ssh ${this.targetHost} '${tmuxEnvCommand}'`
+
+          const { stdout: portOutput } = await execAsync(envCommand)
 
           const portMatch = portOutput.match(/^PORT=(\d+)/)
           if (portMatch) {
@@ -70,9 +101,32 @@ export class DynamicConfigManager {
       const errorMessage =
         error instanceof Error ? error.message : String(error)
       const errorStack = error instanceof Error ? error.stack : undefined
+
+      let context = 'Failed to fetch tmux sessions'
+      if (this.targetHost !== 'localhost') {
+        if (
+          errorMessage.includes('ssh') ||
+          errorMessage.includes('Permission denied')
+        ) {
+          context = `SSH error accessing ${this.targetHost}: ${errorMessage}`
+        } else if (
+          errorMessage.includes('not reachable') ||
+          errorMessage.includes('Connection refused')
+        ) {
+          context = `Cannot connect to ${this.targetHost}: ${errorMessage}`
+        } else {
+          context = `Failed to fetch tmux sessions from ${this.targetHost}`
+        }
+      }
+
       this.logger?.error(
-        { err: error, message: errorMessage, stack: errorStack },
-        'Failed to fetch tmux sessions',
+        {
+          err: error,
+          message: errorMessage,
+          stack: errorStack,
+          targetHost: this.targetHost,
+        },
+        context,
       )
     }
 
@@ -111,6 +165,17 @@ export class DynamicConfigManager {
   }
 
   async updateMappings(): Promise<boolean> {
+    // Test SSH connection first if using remote host
+    if (this.targetHost !== 'localhost') {
+      const isConnected = await this.testSSHConnection()
+      if (!isConnected) {
+        this.logger?.warn(
+          `Skipping tmux session fetch due to SSH connection failure to ${this.targetHost}`,
+        )
+        return false
+      }
+    }
+
     const newMappings = await this.fetchTmuxSessions()
     const changes = this.detectChanges(newMappings)
 

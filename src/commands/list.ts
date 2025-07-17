@@ -4,10 +4,12 @@ import { hostname } from 'os'
 
 interface ListOptions {
   watch?: boolean
+  targetHost?: string
 }
 
 export async function listCommand(options: ListOptions) {
-  const configManager = new DynamicConfigManager()
+  const targetHost = options.targetHost || 'localhost'
+  const configManager = new DynamicConfigManager(targetHost)
   const systemHostname = hostname()
 
   async function displayMappings() {
@@ -15,7 +17,11 @@ export async function listCommand(options: ListOptions) {
     const entries = Object.entries(mappings)
 
     console.clear()
-    console.log(chalk.cyan('🌐 Active Proxy Mappings\n'))
+    const header =
+      targetHost === 'localhost'
+        ? '🌐 Active Proxy Mappings\n'
+        : `🌐 Active Proxy Mappings on ${targetHost}\n`
+    console.log(chalk.cyan(header))
 
     if (entries.length === 0) {
       console.log(
@@ -24,9 +30,10 @@ export async function listCommand(options: ListOptions) {
         ),
       )
       console.log(chalk.gray('\nTo create a mapping:'))
+      const tmuxPrefix = targetHost === 'localhost' ? '' : `ssh ${targetHost} `
       console.log(
         chalk.gray(
-          '1. Start a tmux session: tmux -L tmux-composer-system new -s myapp',
+          `1. Start a tmux session: ${tmuxPrefix}tmux -L tmux-composer-system new -s myapp`,
         ),
       )
       console.log(chalk.gray('2. Set PORT variable: export PORT=3000'))

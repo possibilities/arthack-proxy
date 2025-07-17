@@ -32,12 +32,12 @@ interface AppOptions extends FastifyPluginOptions {
 }
 
 export default async function app(fastify: FastifyInstance, opts: AppOptions) {
-  const configManager = new DynamicConfigManager()
+  const targetHost = opts.targetHost || 'localhost'
+  const configManager = new DynamicConfigManager(targetHost)
   const certManager = new CertificateManager()
 
   const isHttps = opts.isHttps === true
   const protocol = isHttps ? 'https' : 'http'
-  const targetHost = opts.targetHost || 'localhost'
 
   const wsProxy = httpProxy.createProxyServer({
     ws: true,
