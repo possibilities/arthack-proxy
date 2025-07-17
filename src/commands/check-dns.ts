@@ -75,7 +75,7 @@ export async function checkDnsCommand() {
     } catch {}
   } else {
     console.log(chalk.red('❌ /etc/dnsmasq.d/arthack-proxy.conf not found'))
-    console.log(chalk.gray('   Run: arthack setup:certs'))
+    console.log(chalk.gray('   Run: arthack-proxy setup:certs'))
   }
 
   console.log(chalk.cyan('\n🌐 Testing DNS resolution:'))

@@ -78,9 +78,11 @@ export async function startCommand(options: StartOptions) {
       if ((err as any).code === 'EACCES') {
         console.error(chalk.red('❌ Permission denied binding to ports'))
         console.error(
-          chalk.yellow('   Run: arthack setup:certs (and enable port binding)'),
+          chalk.yellow(
+            '   Run: arthack-proxy setup:certs (and enable port binding)',
+          ),
         )
-        console.error(chalk.yellow('   Or run with: sudo arthack start'))
+        console.error(chalk.yellow('   Or run with: sudo arthack-proxy start'))
       } else {
         console.error(chalk.red('❌ Failed to start servers:'), err)
       }
@@ -91,7 +93,9 @@ export async function startCommand(options: StartOptions) {
       console.log(
         chalk.yellow('📡 Starting HTTP server (no certificates found)'),
       )
-      console.log(chalk.gray('💡 Run "arthack setup:certs" to enable HTTPS'))
+      console.log(
+        chalk.gray('💡 Run "arthack-proxy setup:certs" to enable HTTPS'),
+      )
     } else {
       console.log(
         chalk.yellow('📡 Starting HTTP-only server (--no-https flag)'),
@@ -123,9 +127,11 @@ export async function startCommand(options: StartOptions) {
       if ((err as any).code === 'EACCES') {
         console.error(chalk.red('❌ Permission denied binding to port'))
         console.error(
-          chalk.yellow('   Run: arthack setup:certs (and enable port binding)'),
+          chalk.yellow(
+            '   Run: arthack-proxy setup:certs (and enable port binding)',
+          ),
         )
-        console.error(chalk.yellow('   Or run with: sudo arthack start'))
+        console.error(chalk.yellow('   Or run with: sudo arthack-proxy start'))
       } else {
         console.error(chalk.red('❌ Failed to start server:'), err)
       }

@@ -6,7 +6,7 @@
   "description": "Arthack Proxy - Dynamic subdomain proxy for local development",
   "type": "module",
   "bin": {
-    "arthack": "./dist/cli.js"
+    "arthack-proxy": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsup",

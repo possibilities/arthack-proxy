@@ -209,6 +209,6 @@ Domains=~dev.localhost ~dev.${systemHostname}
   console.log(chalk.white(`   https://myapp.dev.${systemHostname}`))
 
   console.log(
-    chalk.gray('\n💡 Run "arthack check:dns" to verify DNS resolution'),
+    chalk.gray('\n💡 Run "arthack-proxy check:dns" to verify DNS resolution'),
   )
 }

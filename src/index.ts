@@ -29,7 +29,7 @@ const packageJson = require(packageJsonPath)
 const program = new Command()
 
 program
-  .name('arthack')
+  .name('arthack-proxy')
   .description(
     chalk.cyan('Arthack Proxy - Dynamic subdomain proxy for local development'),
   )

@@ -169,7 +169,7 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
         console.log(
           chalk.green('\n✅ You can now run the proxy on standard ports:'),
         )
-        console.log(chalk.gray('   arthack start'))
+        console.log(chalk.gray('   arthack-proxy start'))
         console.log(chalk.gray('\n🔄 To remove this capability later:'))
         console.log(chalk.gray(`   sudo setcap -r ${nodePath}`))
       } catch (error) {
@@ -203,5 +203,5 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
   }
 
   console.log(chalk.green('\n✨ Setup complete! Start the proxy with:'))
-  console.log(chalk.white('   arthack start'))
+  console.log(chalk.white('   arthack-proxy start'))
 }
