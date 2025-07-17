@@ -1,12 +1,5 @@
 import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
-
-const currentModuleUrl = import.meta.url
-const currentModulePath = fileURLToPath(currentModuleUrl)
-const currentDirectory = dirname(currentModulePath)
-const projectRoot = dirname(currentDirectory)
+import { getCertificatePaths } from './config-paths.js'
 
 export interface CertificateConfig {
   key: Buffer
@@ -18,9 +11,9 @@ export class CertificateManager {
   private keyPath: string
 
   constructor() {
-    const certsDirectory = join(projectRoot, 'certs')
-    this.certificatePath = join(certsDirectory, 'cert.pem')
-    this.keyPath = join(certsDirectory, 'key.pem')
+    const paths = getCertificatePaths()
+    this.certificatePath = paths.cert
+    this.keyPath = paths.key
   }
 
   hasCertificates(): boolean {

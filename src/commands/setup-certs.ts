@@ -3,14 +3,8 @@ import ora from 'ora'
 import prompts from 'prompts'
 import { execSync } from 'child_process'
 import { existsSync, mkdirSync } from 'fs'
-import { join } from 'path'
 import { hostname } from 'os'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
-
-const currentModulePath = fileURLToPath(import.meta.url)
-const currentDirectory = dirname(currentModulePath)
-const projectRoot = join(currentDirectory, '..', '..')
+import { getCertsDirectory, getCertificatePaths } from '../config-paths.js'
 
 interface SetupCertsOptions {
   hostname?: string
@@ -97,13 +91,14 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
     process.exit(1)
   }
 
-  const certsDir = join(projectRoot, 'certs')
+  const certsDir = getCertsDirectory()
   if (!existsSync(certsDir)) {
     mkdirSync(certsDir, { recursive: true })
   }
 
-  const certPath = join(certsDir, 'cert.pem')
-  const keyPath = join(certsDir, 'key.pem')
+  const paths = getCertificatePaths()
+  const certPath = paths.cert
+  const keyPath = paths.key
 
   console.log(
     chalk.cyan(
