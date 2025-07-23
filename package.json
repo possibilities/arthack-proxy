@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "author": "Mike Bannister <notimpossiblemike@gmail.com>",
   "license": "MIT",
-  "description": "Arthack Proxy - Dynamic subdomain proxy for local development",
+  "description": "ArtHack Proxy",
   "type": "module",
   "bin": {
     "arthack-proxy": "./dist/cli.js"
