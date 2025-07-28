@@ -117,11 +117,13 @@ export async function setupDnsCommand(options: SetupDnsOptions) {
   }
 
   const configContent = `# Wildcard DNS for arthack-proxy
-# Routes *.dev.localhost and *.dev.${systemHostname} to 127.0.0.1
+# Routes *.dev.localhost, *.dev.${systemHostname}, *.system.dev.localhost, and *.system.dev.${systemHostname} to 127.0.0.1
 
 # Wildcard DNS entries for 3-label domains (fixes curl/wget issues)
 address=/.dev.localhost/127.0.0.1
 address=/.dev.${systemHostname}/127.0.0.1
+address=/.system.dev.localhost/127.0.0.1
+address=/.system.dev.${systemHostname}/127.0.0.1
 `
 
   const configPath = '/tmp/arthack-proxy.conf'
@@ -172,7 +174,7 @@ listen-address=127.0.0.1
 
     const resolvedConfig = `[Resolve]
 DNS=127.0.0.1:5353
-Domains=~dev.localhost ~dev.${systemHostname}
+Domains=~dev.localhost ~dev.${systemHostname} ~system.dev.localhost ~system.dev.${systemHostname}
 `
     writeFileSync('/tmp/arthack-proxy-resolved.conf', resolvedConfig)
     execSync('sudo mkdir -p /etc/systemd/resolved.conf.d/')
@@ -207,6 +209,10 @@ Domains=~dev.localhost ~dev.${systemHostname}
   console.log(chalk.white(`   https://myapp.dev.localhost`))
   console.log(chalk.white(`   http://myapp.dev.${systemHostname}`))
   console.log(chalk.white(`   https://myapp.dev.${systemHostname}`))
+  console.log(chalk.white(`   http://myapp.system.dev.localhost`))
+  console.log(chalk.white(`   https://myapp.system.dev.localhost`))
+  console.log(chalk.white(`   http://myapp.system.dev.${systemHostname}`))
+  console.log(chalk.white(`   https://myapp.system.dev.${systemHostname}`))
 
   console.log(
     chalk.gray('\n💡 Run "arthack-proxy check:dns" to verify DNS resolution'),

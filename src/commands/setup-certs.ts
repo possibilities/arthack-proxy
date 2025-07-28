@@ -111,9 +111,13 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
     'localhost',
     '*.dev.localhost',
     'dev.localhost',
+    '*.system.dev.localhost',
+    'system.dev.localhost',
     systemHostname,
     `*.dev.${systemHostname}`,
     `dev.${systemHostname}`,
+    `*.system.dev.${systemHostname}`,
+    `system.dev.${systemHostname}`,
     '127.0.0.1',
     '::1',
   ]
@@ -142,6 +146,8 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
   console.log(chalk.cyan('\n🌐 You can access your services via:'))
   console.log(chalk.white(`   https://subdomain.dev.localhost`))
   console.log(chalk.white(`   https://subdomain.dev.${systemHostname}`))
+  console.log(chalk.white(`   https://subdomain.system.dev.localhost`))
+  console.log(chalk.white(`   https://subdomain.system.dev.${systemHostname}`))
 
   if (!options.skipPorts) {
     const { enablePorts } = await prompts({
@@ -184,7 +190,9 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
       type: 'confirm',
       name: 'setupDns',
       message:
-        'Set up wildcard DNS resolution for *.dev.localhost and *.dev.' +
+        'Set up wildcard DNS resolution for *.dev.localhost, *.dev.' +
+        systemHostname +
+        ', *.system.dev.localhost, and *.system.dev.' +
         systemHostname +
         '?',
       initial: true,
