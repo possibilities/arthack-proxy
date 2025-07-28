@@ -4,9 +4,24 @@ import { FastifyInstance } from 'fastify'
 
 const executeCommand = promisify(exec)
 
+const BROWSER_SUBDOMAIN_PREFIX = 'browser-'
+
 export interface MappingChange {
   added: Record<string, number>
   removed: string[]
+}
+
+interface BrowserPort {
+  host: string
+  port: string
+}
+
+interface BrowserInfo {
+  name: string
+  status: 'running' | 'stopped'
+  createdAt: string
+  lastUsed: string
+  ports?: Record<string, BrowserPort>
 }
 
 function escapeShellArg(arg: string): string {
@@ -31,6 +46,10 @@ function constructSSHCommand(host: string, command: string): string {
     return command
   }
   return `ssh ${escapeShellArg(host)} ${escapeShellArg(command)}`
+}
+
+export function isBrowserMapping(subdomain: string): boolean {
+  return subdomain.startsWith(BROWSER_SUBDOMAIN_PREFIX)
 }
 
 export class DynamicConfigManager {
@@ -173,6 +192,62 @@ export class DynamicConfigManager {
     return serverMappings
   }
 
+  async fetchBrowserSessions(): Promise<Record<string, number>> {
+    const browserMappings: Record<string, number> = {}
+
+    try {
+      const command = constructSSHCommand(
+        this.targetHost,
+        'browser-composer list-browsers --json',
+      )
+      const { stdout } = await executeCommand(command)
+
+      const browsers: BrowserInfo[] = JSON.parse(stdout)
+
+      for (const browser of browsers) {
+        if (browser.status === 'running' && browser.ports) {
+          for (const [portName, portInfo] of Object.entries(browser.ports)) {
+            if (
+              portInfo &&
+              typeof portInfo === 'object' &&
+              'port' in portInfo
+            ) {
+              const port = parseInt(String(portInfo.port), 10)
+              if (validatePort(port)) {
+                const mappingKey = `${BROWSER_SUBDOMAIN_PREFIX}${portName}-${browser.name}`
+                browserMappings[mappingKey] = port
+                this.logger?.debug(
+                  { browser: browser.name, portName, port, mappingKey },
+                  'Found browser port mapping',
+                )
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error)
+
+      const isBrowserComposerNotFound =
+        errorMessage.includes('browser-composer: command not found') ||
+        errorMessage.includes('browser-composer: not found')
+
+      if (isBrowserComposerNotFound) {
+        this.logger?.debug(
+          'browser-composer not installed, skipping browser discovery',
+        )
+      } else {
+        this.logger?.debug(
+          { err: error, targetHost: this.targetHost },
+          'Failed to fetch browser sessions',
+        )
+      }
+    }
+
+    return browserMappings
+  }
+
   async fetchTmuxSessions(): Promise<Record<string, number>> {
     const defaultSessions = await this.fetchSessionsFromServer(null, '')
     const systemSessions = await this.fetchSessionsFromServer(
@@ -223,13 +298,15 @@ export class DynamicConfigManager {
       const isConnected = await this.testSSHConnection()
       if (!isConnected) {
         this.logger?.warn(
-          `Skipping tmux session fetch due to SSH connection failure to ${this.targetHost}`,
+          `Skipping session fetch due to SSH connection failure to ${this.targetHost}`,
         )
         return false
       }
     }
 
-    const newMappings = await this.fetchTmuxSessions()
+    const tmuxMappings = await this.fetchTmuxSessions()
+    const browserMappings = await this.fetchBrowserSessions()
+    const newMappings = { ...tmuxMappings, ...browserMappings }
     const changes = this.compareAndDetectChanges(newMappings)
 
     const hasChanges =
@@ -241,7 +318,10 @@ export class DynamicConfigManager {
 
       for (const [subdomain, port] of Object.entries(changes.added)) {
         const mappingMessage = `${subdomain} ──→ ${port}`
-        await this.notifyAndLog(`New server: ${mappingMessage}`, '🟢')
+        const isBrowser = isBrowserMapping(subdomain)
+        const icon = isBrowser ? '🖥️' : '🟢'
+        const serverType = isBrowser ? 'browser' : 'server'
+        await this.notifyAndLog(`New ${serverType}: ${mappingMessage}`, icon)
       }
 
       for (const subdomain of changes.removed) {
@@ -249,7 +329,12 @@ export class DynamicConfigManager {
         const removalMessage = previousPort
           ? `${subdomain} (was on port ${previousPort})`
           : subdomain
-        await this.notifyAndLog(`Server removed: ${removalMessage}`, '🔴')
+        const isBrowser = isBrowserMapping(subdomain)
+        const serverType = isBrowser ? 'browser' : 'server'
+        await this.notifyAndLog(
+          `Removed ${serverType}: ${removalMessage}`,
+          '🔴',
+        )
       }
 
       this.logger?.info('Subdomain mappings updated:')

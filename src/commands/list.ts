@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { DynamicConfigManager } from '../dynamic-config.js'
+import { DynamicConfigManager, isBrowserMapping } from '../dynamic-config.js'
 import { hostname } from 'os'
 
 interface ListOptions {
@@ -13,8 +13,10 @@ export async function listCommand(options: ListOptions) {
   const systemHostname = hostname()
 
   async function fetchAndDisplayMappings() {
-    const mappings = await configManager.fetchTmuxSessions()
-    const entries = Object.entries(mappings)
+    const tmuxMappings = await configManager.fetchTmuxSessions()
+    const browserMappings = await configManager.fetchBrowserSessions()
+    const allMappings = { ...tmuxMappings, ...browserMappings }
+    const entries = Object.entries(allMappings)
 
     console.clear()
     const header =
@@ -24,13 +26,10 @@ export async function listCommand(options: ListOptions) {
     console.log(chalk.cyan(header))
 
     if (entries.length === 0) {
-      console.log(
-        chalk.yellow(
-          'No active tmux sessions with PORT environment variable found.',
-        ),
-      )
+      console.log(chalk.yellow('No active mappings found.'))
       console.log(chalk.gray('\nTo create a mapping:'))
       const tmuxPrefix = targetHost === 'localhost' ? '' : `ssh ${targetHost} `
+      console.log(chalk.gray('\nFor tmux sessions:'))
       console.log(
         chalk.gray(
           `1. Start a tmux session: ${tmuxPrefix}tmux -L tmux-composer-system new -s myapp`,
@@ -38,13 +37,19 @@ export async function listCommand(options: ListOptions) {
       )
       console.log(chalk.gray('2. Set PORT variable: export PORT=3000'))
       console.log(chalk.gray('3. Start your app'))
+      console.log(chalk.gray('\nFor browsers:'))
+      console.log(
+        chalk.gray('1. Start a browser: browser-composer start my-browser'),
+      )
+      console.log(chalk.gray('2. Browser ports will be automatically mapped'))
       return
     }
 
     console.log(chalk.white('Subdomain → Port\n'))
 
     entries.forEach(([subdomain, port]) => {
-      console.log(chalk.green(`${subdomain} → ${port}`))
+      const icon = isBrowserMapping(subdomain) ? '🖥️ ' : ''
+      console.log(chalk.green(`${icon}${subdomain} → ${port}`))
       console.log(chalk.gray(`  https://${subdomain}.dev.localhost`))
       console.log(chalk.gray(`  https://${subdomain}.dev.${systemHostname}`))
       console.log('')
