@@ -11,17 +11,26 @@ import {
 } from 'fastify'
 import { DynamicConfigManager } from './dynamic-config.js'
 import { CertificateManager } from './cert-manager.js'
+import { generateErrorPage, generateNotFoundPage } from './error-page.js'
 
 function extractSubdomainAndPort(
   hostname: string,
   configManager: DynamicConfigManager,
 ): { subdomain: string | null; port: number | null } {
-  const subdomainMatch = hostname.match(/^([^.]+)\./)
-  if (!subdomainMatch) {
+  const systemHostnameMatch = hostname.match(/^([^.]+)\.system\.dev\./)
+  if (systemHostnameMatch) {
+    const subdomainWithSystemSuffix = `${systemHostnameMatch[1]}.system`
+    const port =
+      configManager.subdomainToPortMapping[subdomainWithSystemSuffix] || null
+    return { subdomain: subdomainWithSystemSuffix, port }
+  }
+
+  const standardSubdomainMatch = hostname.match(/^([^.]+)\./)
+  if (!standardSubdomainMatch) {
     return { subdomain: null, port: null }
   }
 
-  const subdomain = subdomainMatch[1]
+  const subdomain = standardSubdomainMatch[1]
   const port = configManager.subdomainToPortMapping[subdomain] || null
   return { subdomain, port }
 }
@@ -109,7 +118,18 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
         configManager,
       )
 
+      const wantsBrowserResponse = (
+        incomingRequest.headers.accept || ''
+      ).includes('text/html')
+
       if (!subdomain) {
+        if (wantsBrowserResponse) {
+          return proxyReply
+            .code(404)
+            .type('text/html')
+            .send(generateNotFoundPage(requestHostname))
+        }
+
         return proxyReply.code(404).send({
           error: 'Not Found',
           message: 'No subdomain specified in the request',
@@ -118,6 +138,20 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
       }
 
       if (!port) {
+        if (wantsBrowserResponse) {
+          return proxyReply
+            .code(503)
+            .type('text/html')
+            .send(
+              generateErrorPage(
+                subdomain,
+                Object.keys(configManager.subdomainToPortMapping),
+                requestHostname,
+                protocol,
+              ),
+            )
+        }
+
         return proxyReply.code(503).send({
           error: 'Service Unavailable',
           message: `No service found for subdomain: ${subdomain}`,

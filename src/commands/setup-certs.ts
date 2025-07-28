@@ -142,6 +142,15 @@ export async function setupCertsCommand(options: SetupCertsOptions) {
   console.log(chalk.gray(`   ${certPath}`))
   console.log(chalk.gray(`   ${keyPath}`))
 
+  const caRoot = execSync('mkcert -CAROOT', { encoding: 'utf-8' }).trim()
+  console.log(chalk.green('\n🔐 CA Certificate location:'))
+  console.log(chalk.gray(`   ${caRoot}/rootCA.pem`))
+  console.log(
+    chalk.gray(
+      '   (Import this into browsers/apps that need to trust the certificates)',
+    ),
+  )
+
   console.log(chalk.green('\n🚀 Your proxy server can now use HTTPS!'))
   console.log(chalk.cyan('\n🌐 You can access your services via:'))
   console.log(chalk.white(`   https://subdomain.dev.localhost`))

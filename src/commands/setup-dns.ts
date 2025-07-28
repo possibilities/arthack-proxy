@@ -41,10 +41,18 @@ export async function setupDnsCommand(options: SetupDnsOptions) {
       'api.dev.localhost',
       'app.dev.localhost',
       'test.dev.localhost',
+      'system.dev.localhost',
+      'api.system.dev.localhost',
+      'app.system.dev.localhost',
+      'test.system.dev.localhost',
       `dev.${systemHostname}`,
       `api.dev.${systemHostname}`,
       `app.dev.${systemHostname}`,
       `test.dev.${systemHostname}`,
+      `system.dev.${systemHostname}`,
+      `api.system.dev.${systemHostname}`,
+      `app.system.dev.${systemHostname}`,
+      `test.system.dev.${systemHostname}`,
     ]
 
     domains.forEach(domain => {
