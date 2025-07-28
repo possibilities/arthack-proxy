@@ -72,15 +72,31 @@ export class DynamicConfigManager {
     }
   }
 
-  async fetchTmuxSessions(): Promise<Record<string, number>> {
-    const newMappings: Record<string, number> = {}
+  private buildTmuxCommand(
+    serverSocket: string | null,
+    command: string,
+  ): string {
+    const serverFlag = serverSocket ? `-L ${serverSocket}` : '-L default'
+    return `tmux ${serverFlag} ${command}`
+  }
+
+  async fetchSessionsFromServer(
+    serverSocket: string | null,
+    subdomainSuffix: string = '',
+  ): Promise<Record<string, number>> {
+    const serverMappings: Record<string, number> = {}
+    const serverName = serverSocket || 'default'
 
     try {
-      const tmuxCommand =
-        'tmux -L tmux-composer-system list-sessions -F "#{session_name}"'
-      const command = constructSSHCommand(this.targetHost, tmuxCommand)
-
-      const { stdout: sessionsOutput } = await executeCommand(command)
+      const listSessionsCommand = this.buildTmuxCommand(
+        serverSocket,
+        'list-sessions -F "#{session_name}"',
+      )
+      const remoteCommand = constructSSHCommand(
+        this.targetHost,
+        listSessionsCommand,
+      )
+      const { stdout: sessionsOutput } = await executeCommand(remoteCommand)
 
       const sessions = sessionsOutput
         .trim()
@@ -89,76 +105,82 @@ export class DynamicConfigManager {
 
       for (const sessionName of sessions) {
         try {
-          const tmuxEnvCommand = `tmux -L tmux-composer-system show-environment -t "${sessionName}" PORT 2>/dev/null || true`
-          const envCommand = constructSSHCommand(
-            this.targetHost,
-            tmuxEnvCommand,
+          const showEnvCommand = this.buildTmuxCommand(
+            serverSocket,
+            `show-environment -t "${sessionName}" PORT 2>/dev/null || true`,
           )
-
-          const { stdout: portOutput } = await executeCommand(envCommand)
+          const remoteEnvCommand = constructSSHCommand(
+            this.targetHost,
+            showEnvCommand,
+          )
+          const { stdout: portOutput } = await executeCommand(remoteEnvCommand)
 
           const portMatch = portOutput.match(/^PORT=(\d+)/)
           if (portMatch) {
             const port = parseInt(portMatch[1], 10)
             if (validatePort(port)) {
-              newMappings[sessionName] = port
+              const mappingKey = sessionName + subdomainSuffix
+              serverMappings[mappingKey] = port
+              this.logger?.debug(
+                { session: sessionName, port, server: serverName, mappingKey },
+                `Found PORT mapping for ${serverName} tmux session`,
+              )
             } else {
               this.logger?.warn(
-                { session: sessionName, port },
-                'Invalid port number for tmux session',
+                { session: sessionName, port, server: serverName },
+                `Invalid port number for ${serverName} tmux session`,
               )
             }
-            this.logger?.debug(
-              { session: sessionName, port },
-              'Found PORT mapping for tmux session',
-            )
           } else {
             this.logger?.debug(
-              { session: sessionName },
-              'No PORT environment variable found for tmux session',
+              { session: sessionName, server: serverName },
+              `No PORT environment variable found for ${serverName} tmux session`,
             )
           }
         } catch (sessionError) {
           this.logger?.debug(
-            { session: sessionName, error: sessionError },
-            'Failed to get PORT for tmux session',
+            { session: sessionName, error: sessionError, server: serverName },
+            `Failed to get PORT for ${serverName} tmux session`,
           )
         }
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error)
-      const errorStack = error instanceof Error ? error.stack : undefined
 
-      let context = 'Failed to fetch tmux sessions'
-      if (this.targetHost !== 'localhost') {
-        if (
-          errorMessage.includes('ssh') ||
-          errorMessage.includes('Permission denied')
-        ) {
-          context = `SSH error accessing ${this.targetHost}: ${errorMessage}`
-        } else if (
-          errorMessage.includes('not reachable') ||
-          errorMessage.includes('Connection refused')
-        ) {
-          context = `Cannot connect to ${this.targetHost}: ${errorMessage}`
-        } else {
-          context = `Failed to fetch tmux sessions from ${this.targetHost}`
-        }
+      const isServerNotRunning =
+        errorMessage.includes('no server running') ||
+        errorMessage.includes('error connecting to') ||
+        errorMessage.includes('No such file or directory')
+
+      if (isServerNotRunning) {
+        this.logger?.debug(
+          { server: serverName },
+          `No ${serverName} tmux server running`,
+        )
+      } else {
+        this.logger?.error(
+          {
+            err: error,
+            server: serverName,
+            targetHost: this.targetHost,
+          },
+          `Failed to fetch sessions from ${serverName} tmux server`,
+        )
       }
-
-      this.logger?.error(
-        {
-          err: error,
-          message: errorMessage,
-          stack: errorStack,
-          targetHost: this.targetHost,
-        },
-        context,
-      )
     }
 
-    return newMappings
+    return serverMappings
+  }
+
+  async fetchTmuxSessions(): Promise<Record<string, number>> {
+    const defaultSessions = await this.fetchSessionsFromServer(null, '')
+    const systemSessions = await this.fetchSessionsFromServer(
+      'tmux-composer-system',
+      '.system',
+    )
+
+    return { ...defaultSessions, ...systemSessions }
   }
 
   compareAndDetectChanges(newMappings: Record<string, number>): MappingChange {
