@@ -198,7 +198,7 @@ export class DynamicConfigManager {
     try {
       const command = constructSSHCommand(
         this.targetHost,
-        'browser-composer list-browsers --json',
+        'npx browser-composer list-browsers --json',
       )
       const { stdout } = await executeCommand(command)
 
@@ -231,7 +231,9 @@ export class DynamicConfigManager {
 
       const isBrowserComposerNotFound =
         errorMessage.includes('browser-composer: command not found') ||
-        errorMessage.includes('browser-composer: not found')
+        errorMessage.includes('browser-composer: not found') ||
+        errorMessage.includes('No such module') ||
+        errorMessage.includes('Could not resolve')
 
       if (isBrowserComposerNotFound) {
         this.logger?.debug(
