@@ -198,7 +198,7 @@ export class DynamicConfigManager {
     try {
       const command = constructSSHCommand(
         this.targetHost,
-        'npx browser-composer list-browsers --json',
+        'browser-composer list-browsers --json',
       )
       const { stdout } = await executeCommand(command)
 

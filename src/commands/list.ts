@@ -39,7 +39,7 @@ export async function listCommand(options: ListOptions) {
       console.log(chalk.gray('3. Start your app'))
       console.log(chalk.gray('\nFor browsers:'))
       console.log(
-        chalk.gray('1. Start a browser: npx browser-composer start my-browser'),
+        chalk.gray('1. Start a browser: browser-composer start my-browser'),
       )
       console.log(chalk.gray('2. Browser ports will be automatically mapped'))
       return
