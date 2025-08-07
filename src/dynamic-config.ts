@@ -99,6 +99,29 @@ export class DynamicConfigManager {
     return `tmux ${serverFlag} ${command}`
   }
 
+  private cleanSessionName(sessionName: string): string {
+    const sessionSuffixPattern = /^(.+)-session-(\d+)$/
+    const worktreeSuffixPattern = /^(.+)-worktree-(\d+)$/
+
+    const sessionMatch = sessionName.match(sessionSuffixPattern)
+    if (sessionMatch) {
+      const projectName = sessionMatch[1]
+      const sessionNumber = sessionMatch[2]
+      return sessionNumber === '00001'
+        ? projectName
+        : `${projectName}-${sessionNumber}`
+    }
+
+    const worktreeMatch = sessionName.match(worktreeSuffixPattern)
+    if (worktreeMatch) {
+      const projectName = worktreeMatch[1]
+      const worktreeNumber = worktreeMatch[2]
+      return `${projectName}-${worktreeNumber}`
+    }
+
+    return sessionName
+  }
+
   async fetchSessionsFromServer(
     serverSocket: string | null,
     subdomainSuffix: string = '',
@@ -138,10 +161,17 @@ export class DynamicConfigManager {
           if (portMatch) {
             const port = parseInt(portMatch[1], 10)
             if (validatePort(port)) {
-              const mappingKey = sessionName + subdomainSuffix
+              const cleanedName = this.cleanSessionName(sessionName)
+              const mappingKey = cleanedName + subdomainSuffix
               serverMappings[mappingKey] = port
               this.logger?.debug(
-                { session: sessionName, port, server: serverName, mappingKey },
+                {
+                  session: sessionName,
+                  cleanedName,
+                  port,
+                  server: serverName,
+                  mappingKey,
+                },
                 `Found PORT mapping for ${serverName} tmux session`,
               )
             } else {
@@ -214,10 +244,17 @@ export class DynamicConfigManager {
             ) {
               const port = parseInt(String(portInfo.port), 10)
               if (validatePort(port)) {
-                const mappingKey = `${BROWSER_SUBDOMAIN_PREFIX}${portName}-${browser.name}`
+                const cleanedBrowserName = this.cleanSessionName(browser.name)
+                const mappingKey = `${BROWSER_SUBDOMAIN_PREFIX}${portName}-${cleanedBrowserName}`
                 browserMappings[mappingKey] = port
                 this.logger?.debug(
-                  { browser: browser.name, portName, port, mappingKey },
+                  {
+                    browser: browser.name,
+                    cleanedBrowserName,
+                    portName,
+                    port,
+                    mappingKey,
+                  },
                   'Found browser port mapping',
                 )
               }

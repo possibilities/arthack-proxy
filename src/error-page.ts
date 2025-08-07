@@ -5,16 +5,10 @@ function constructServiceUrl(
 ): string {
   if (subdomain.endsWith('.system')) {
     const baseSubdomain = subdomain.replace('.system', '')
-    const hostWithoutFirstSegment = hostname.split('.').slice(1).join('.')
-    const hostWithoutSystemPrefix = hostWithoutFirstSegment.replace(
-      /^system\./,
-      '',
-    )
-    return `${protocol}://${baseSubdomain}.system.${hostWithoutSystemPrefix}`
+    return `${protocol}://${baseSubdomain}.system.${hostname}`
   }
 
-  const hostWithoutFirstSegment = hostname.split('.').slice(1).join('.')
-  return `${protocol}://${subdomain}.${hostWithoutFirstSegment}`
+  return `${protocol}://${subdomain}.${hostname}`
 }
 
 export function generateErrorPage(
