@@ -41,18 +41,18 @@ export async function setupDnsCommand(options: SetupDnsOptions) {
       'api.dev.localhost',
       'app.dev.localhost',
       'test.dev.localhost',
-      'system.dev.localhost',
-      'api.system.dev.localhost',
-      'app.system.dev.localhost',
-      'test.system.dev.localhost',
+      'system.localhost',
+      'api.system.localhost',
+      'app.system.localhost',
+      'test.system.localhost',
       `dev.${systemHostname}`,
       `api.dev.${systemHostname}`,
       `app.dev.${systemHostname}`,
       `test.dev.${systemHostname}`,
-      `system.dev.${systemHostname}`,
-      `api.system.dev.${systemHostname}`,
-      `app.system.dev.${systemHostname}`,
-      `test.system.dev.${systemHostname}`,
+      `system.${systemHostname}`,
+      `api.system.${systemHostname}`,
+      `app.system.${systemHostname}`,
+      `test.system.${systemHostname}`,
     ]
 
     domains.forEach(domain => {
@@ -125,13 +125,13 @@ export async function setupDnsCommand(options: SetupDnsOptions) {
   }
 
   const configContent = `# Wildcard DNS for arthack-proxy
-# Routes *.dev.localhost, *.dev.${systemHostname}, *.system.dev.localhost, and *.system.dev.${systemHostname} to 127.0.0.1
+# Routes *.dev.localhost, *.dev.${systemHostname}, *.system.localhost, and *.system.${systemHostname} to 127.0.0.1
 
 # Wildcard DNS entries for 3-label domains (fixes curl/wget issues)
 address=/.dev.localhost/127.0.0.1
 address=/.dev.${systemHostname}/127.0.0.1
-address=/.system.dev.localhost/127.0.0.1
-address=/.system.dev.${systemHostname}/127.0.0.1
+address=/.system.localhost/127.0.0.1
+address=/.system.${systemHostname}/127.0.0.1
 `
 
   const configPath = '/tmp/arthack-proxy.conf'
@@ -182,7 +182,7 @@ listen-address=127.0.0.1
 
     const resolvedConfig = `[Resolve]
 DNS=127.0.0.1:5353
-Domains=~dev.localhost ~dev.${systemHostname} ~system.dev.localhost ~system.dev.${systemHostname}
+Domains=~dev.localhost ~dev.${systemHostname} ~system.localhost ~system.${systemHostname}
 `
     writeFileSync('/tmp/arthack-proxy-resolved.conf', resolvedConfig)
     execSync('sudo mkdir -p /etc/systemd/resolved.conf.d/')
@@ -217,10 +217,10 @@ Domains=~dev.localhost ~dev.${systemHostname} ~system.dev.localhost ~system.dev.
   console.log(chalk.white(`   https://myapp.dev.localhost`))
   console.log(chalk.white(`   http://myapp.dev.${systemHostname}`))
   console.log(chalk.white(`   https://myapp.dev.${systemHostname}`))
-  console.log(chalk.white(`   http://myapp.system.dev.localhost`))
-  console.log(chalk.white(`   https://myapp.system.dev.localhost`))
-  console.log(chalk.white(`   http://myapp.system.dev.${systemHostname}`))
-  console.log(chalk.white(`   https://myapp.system.dev.${systemHostname}`))
+  console.log(chalk.white(`   http://myapp.system.localhost`))
+  console.log(chalk.white(`   https://myapp.system.localhost`))
+  console.log(chalk.white(`   http://myapp.system.${systemHostname}`))
+  console.log(chalk.white(`   https://myapp.system.${systemHostname}`))
 
   console.log(
     chalk.gray('\n💡 Run "arthack-proxy check:dns" to verify DNS resolution'),

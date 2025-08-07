@@ -74,10 +74,8 @@ export async function startCommand(options: StartOptions) {
       console.log(chalk.cyan('🌐 Access your services at:'))
       console.log(chalk.white(`   https://subdomain.dev.localhost`))
       console.log(chalk.white(`   https://subdomain.dev.${systemHostname}`))
-      console.log(chalk.white(`   https://subdomain.system.dev.localhost`))
-      console.log(
-        chalk.white(`   https://subdomain.system.dev.${systemHostname}`),
-      )
+      console.log(chalk.white(`   https://subdomain.system.localhost`))
+      console.log(chalk.white(`   https://subdomain.system.${systemHostname}`))
     } catch (err) {
       if ((err as any).code === 'EACCES') {
         console.error(chalk.red('❌ Permission denied binding to ports'))
@@ -128,12 +126,10 @@ export async function startCommand(options: StartOptions) {
         chalk.white(`   http://subdomain.dev.${systemHostname}:${httpPort}`),
       )
       console.log(
-        chalk.white(`   http://subdomain.system.dev.localhost:${httpPort}`),
+        chalk.white(`   http://subdomain.system.localhost:${httpPort}`),
       )
       console.log(
-        chalk.white(
-          `   http://subdomain.system.dev.${systemHostname}:${httpPort}`,
-        ),
+        chalk.white(`   http://subdomain.system.${systemHostname}:${httpPort}`),
       )
     } catch (err) {
       if ((err as any).code === 'EACCES') {

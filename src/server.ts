@@ -17,7 +17,7 @@ function extractSubdomainAndPort(
   hostname: string,
   configManager: DynamicConfigManager,
 ): { subdomain: string | null; port: number | null } {
-  const systemHostnameMatch = hostname.match(/^([^.]+)\.system\.dev\./)
+  const systemHostnameMatch = hostname.match(/^([^.]+)\.system\./)
   if (systemHostnameMatch) {
     const subdomainWithSystemSuffix = `${systemHostnameMatch[1]}.system`
     const port =
@@ -145,7 +145,7 @@ export default async function app(fastify: FastifyInstance, opts: AppOptions) {
             .send(
               generateErrorPage(
                 subdomain,
-                Object.keys(configManager.subdomainToPortMapping),
+                configManager.subdomainMappingsWithSource,
                 requestHostname,
                 protocol,
               ),

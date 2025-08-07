@@ -52,8 +52,14 @@ export function isBrowserMapping(subdomain: string): boolean {
   return subdomain.startsWith(BROWSER_SUBDOMAIN_PREFIX)
 }
 
+export interface SubdomainInfo {
+  port: number
+  source: 'browser' | 'system' | 'general'
+}
+
 export class DynamicConfigManager {
   private currentMappings: Record<string, number> = {}
+  private currentMappingsWithSource: Record<string, SubdomainInfo> = {}
   private pollInterval?: NodeJS.Timeout
   private logger?: FastifyInstance['log']
   private targetHost: string
@@ -70,6 +76,10 @@ export class DynamicConfigManager {
 
   get subdomainToPortMapping(): Record<string, number> {
     return { ...this.currentMappings }
+  }
+
+  get subdomainMappingsWithSource(): Record<string, SubdomainInfo> {
+    return { ...this.currentMappingsWithSource }
   }
 
   async testSSHConnection(): Promise<boolean> {
@@ -125,8 +135,8 @@ export class DynamicConfigManager {
   async fetchSessionsFromServer(
     serverSocket: string | null,
     subdomainSuffix: string = '',
-  ): Promise<Record<string, number>> {
-    const serverMappings: Record<string, number> = {}
+  ): Promise<Record<string, SubdomainInfo>> {
+    const serverMappings: Record<string, SubdomainInfo> = {}
     const serverName = serverSocket || 'default'
 
     try {
@@ -163,7 +173,9 @@ export class DynamicConfigManager {
             if (validatePort(port)) {
               const cleanedName = this.cleanSessionName(sessionName)
               const mappingKey = cleanedName + subdomainSuffix
-              serverMappings[mappingKey] = port
+              const source =
+                subdomainSuffix === '.system' ? 'system' : 'general'
+              serverMappings[mappingKey] = { port, source }
               this.logger?.debug(
                 {
                   session: sessionName,
@@ -222,8 +234,8 @@ export class DynamicConfigManager {
     return serverMappings
   }
 
-  async fetchBrowserSessions(): Promise<Record<string, number>> {
-    const browserMappings: Record<string, number> = {}
+  async fetchBrowserSessions(): Promise<Record<string, SubdomainInfo>> {
+    const browserMappings: Record<string, SubdomainInfo> = {}
 
     try {
       const command = constructSSHCommand(
@@ -246,7 +258,7 @@ export class DynamicConfigManager {
               if (validatePort(port)) {
                 const cleanedBrowserName = this.cleanSessionName(browser.name)
                 const mappingKey = `${BROWSER_SUBDOMAIN_PREFIX}${portName}-${cleanedBrowserName}`
-                browserMappings[mappingKey] = port
+                browserMappings[mappingKey] = { port, source: 'browser' }
                 this.logger?.debug(
                   {
                     browser: browser.name,
@@ -287,7 +299,7 @@ export class DynamicConfigManager {
     return browserMappings
   }
 
-  async fetchTmuxSessions(): Promise<Record<string, number>> {
+  async fetchTmuxSessions(): Promise<Record<string, SubdomainInfo>> {
     const defaultSessions = await this.fetchSessionsFromServer(null, '')
     const systemSessions = await this.fetchSessionsFromServer(
       'tmux-composer-system',
@@ -297,13 +309,15 @@ export class DynamicConfigManager {
     return { ...defaultSessions, ...systemSessions }
   }
 
-  compareAndDetectChanges(newMappings: Record<string, number>): MappingChange {
+  compareAndDetectChanges(
+    newMappings: Record<string, SubdomainInfo>,
+  ): MappingChange {
     const added: Record<string, number> = {}
     const removed: string[] = []
 
-    for (const [subdomain, port] of Object.entries(newMappings)) {
-      if (this.currentMappings[subdomain] !== port) {
-        added[subdomain] = port
+    for (const [subdomain, info] of Object.entries(newMappings)) {
+      if (this.currentMappings[subdomain] !== info.port) {
+        added[subdomain] = info.port
       }
     }
 
@@ -345,15 +359,18 @@ export class DynamicConfigManager {
 
     const tmuxMappings = await this.fetchTmuxSessions()
     const browserMappings = await this.fetchBrowserSessions()
-    const newMappings = { ...tmuxMappings, ...browserMappings }
-    const changes = this.compareAndDetectChanges(newMappings)
+    const newMappingsWithSource = { ...tmuxMappings, ...browserMappings }
+    const changes = this.compareAndDetectChanges(newMappingsWithSource)
 
     const hasChanges =
       Object.keys(changes.added).length > 0 || changes.removed.length > 0
 
     if (hasChanges) {
       const oldMappings = this.currentMappings
-      this.currentMappings = newMappings
+      this.currentMappingsWithSource = newMappingsWithSource
+      this.currentMappings = Object.fromEntries(
+        Object.entries(newMappingsWithSource).map(([k, v]) => [k, v.port]),
+      )
 
       for (const [subdomain, port] of Object.entries(changes.added)) {
         const mappingMessage = `${subdomain} ──→ ${port}`
